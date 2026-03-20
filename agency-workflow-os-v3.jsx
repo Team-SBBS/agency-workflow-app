@@ -52,13 +52,15 @@ const STAGES_DEFAULT = [
   { id:"submitted",     label:"Under Review",   color:"#7C3AED", bg:"#F5F3FF", step:4, terminal:false },
   { id:"dept_approved", label:"Dept. Approved", color:"#0891B2", bg:"#ECFEFF", step:5, terminal:false },
   { id:"client_review", label:"Client Review",  color:"#EA580C", bg:"#FFF7ED", step:6, terminal:false },
-  { id:"completed",     label:"Completed",      color:"#059669", bg:"#ECFDF5", step:7, terminal:true  },
+  { id:"on_hold",       label:"On Hold",        color:"#6B7280", bg:"#F3F4F6", step:7, terminal:false },
+  { id:"completed",     label:"Completed",      color:"#059669", bg:"#ECFDF5", step:8, terminal:true  },
 ];
 
 const TRANSITIONS_DEFAULT = {
+  on_hold: [{ action:"resume", label:"Resume Task", to:"in_progress", roles:[ROLES.DM,ROLES.PM,ROLES.SA] }],
   created:       [{ action:"assign",         label:"Assign to Team",     to:"assigned",      roles:[ROLES.DM,ROLES.SA], needsComment:false, isReject:false, needsAssignee:true }],
   assigned:      [{ action:"start",          label:"Start Work",         to:"in_progress",   roles:[ROLES.TM,ROLES.SA], needsComment:false, isReject:false }],
-  in_progress:   [{ action:"submit",         label:"Submit for Review",  to:"submitted",     roles:[ROLES.TM,ROLES.SA], needsComment:false, isReject:false }],
+  in_progress:   [{ action:"submit",         label:"Submit for Review",  to:"submitted",     roles:[ROLES.TM,ROLES.SA], needsComment:false, isReject:false }, { action:"hold_tm", label:"Put on Hold", to:"on_hold", roles:[ROLES.TM,ROLES.SA], needsComment:true }],
   submitted:     [
     { action:"approve_dept", label:"Approve & Escalate", to:"dept_approved", roles:[ROLES.DM,ROLES.SA], needsComment:false, isReject:false },
     { action:"reject_dept",  label:"Request Revision",   to:"in_progress",   roles:[ROLES.DM,ROLES.SA], needsComment:true,  isReject:true  },
@@ -67,6 +69,7 @@ const TRANSITIONS_DEFAULT = {
   client_review: [
     { action:"approve_client", label:"Approve & Complete", to:"completed",     roles:[ROLES.CL,ROLES.PM,ROLES.SA], needsComment:false, isReject:false },
     { action:"reject_client",  label:"Request Changes",    to:"dept_approved", roles:[ROLES.CL,ROLES.PM,ROLES.SA], needsComment:true,  isReject:true  },
+    { action:"hold", label:"Put on Hold", to:"on_hold", roles:[ROLES.DM,ROLES.PM,ROLES.SA], needsComment:true, isReject:false },
   ],
   completed: [],
 };
@@ -112,50 +115,18 @@ const AUTOMATION_ACTIONS = [
 
 // ── SEED DATA ────────────────────────────────────────────────────
 const SEED_USERS = [
-  { id:"u1",  name:"Sarah Chen",    role:ROLES.SA, dept:null, av:"SC", color:"#DC2626", email:"sarah@agency.io",      password:"admin123" },
-  { id:"u2",  name:"Marcus Webb",   role:ROLES.PM, dept:null, av:"MW", color:"#7C3AED", email:"marcus@agency.io",     password:"pm123"    },
-  { id:"u3",  name:"Priya Sharma",  role:ROLES.DM, dept:"d1", av:"PS", color:"#EC4899", email:"priya@agency.io",      password:"dm123"    },
-  { id:"u4",  name:"Jake Torres",   role:ROLES.DM, dept:"d3", av:"JT", color:"#06B6D4", email:"jake@agency.io",       password:"dm123"    },
-  { id:"u5",  name:"Aisha Patel",   role:ROLES.DM, dept:"d4", av:"AP", color:"#8B5CF6", email:"aisha@agency.io",      password:"dm123"    },
-  { id:"u6",  name:"Leo Kim",       role:ROLES.TM, dept:"d1", av:"LK", color:"#F97316", email:"leo@agency.io",        password:"team123"  },
-  { id:"u7",  name:"Nina Rossi",    role:ROLES.TM, dept:"d1", av:"NR", color:"#10B981", email:"nina@agency.io",       password:"team123"  },
-  { id:"u8",  name:"Omar Hassan",   role:ROLES.TM, dept:"d3", av:"OH", color:"#3B82F6", email:"omar@agency.io",       password:"team123"  },
-  { id:"u9",  name:"Zoe Mitchell",  role:ROLES.TM, dept:"d4", av:"ZM", color:"#F59E0B", email:"zoe@agency.io",        password:"team123"  },
-  { id:"u10", name:"TechCorp Ltd",  role:ROLES.CL, dept:null, av:"TC", color:"#64748B", email:"client@techcorp.com",  password:"client123"},
-  { id:"u11", name:"FreshMart",     role:ROLES.CL, dept:null, av:"FM", color:"#64748B", email:"client@freshmart.com", password:"client123"},
+  { id:"admin-sbbs", name:"Master Admin", role:ROLES.SA, dept:null, av:"SA", color:"#1D4ED8", email:"team@sbbs.co.in", password:"Sbbs@123" },
 ];
 
-const SEED_CLIENTS = [
-  { id:"c1", name:"TechCorp Ltd",    email:"contact@techcorp.com", billing:"retainer", retainer:150000, sla:48, portalUser:"u10", industry:"Technology", gst:"27AABCT1234A1Z5" },
-  { id:"c2", name:"FreshMart",       email:"hello@freshmart.com",  billing:"one_time",  retainer:0,      sla:72, portalUser:"u11", industry:"Retail",     gst:"29AADCF5678B1Z3" },
-  { id:"c3", name:"Luminar Studios", email:"studio@luminar.co",    billing:"retainer", retainer:240000, sla:24, portalUser:null,  industry:"Media",      gst:"07AABCL9012C1Z1" },
-  { id:"c4", name:"NexusPay",        email:"ops@nexuspay.io",      billing:"retainer", retainer:360000, sla:12, portalUser:null,  industry:"Fintech",    gst:"19AACCN3456D1Z7" },
-];
+const SEED_CLIENTS = [];
 
 const n0 = new Date();
 const dA = (d) => new Date(n0 - d*86400000).toISOString();
 const dF = (d) => new Date(n0.getTime()+d*86400000).toISOString().slice(0,10);
 
-const SEED_TASKS = [
-  { id:"t1",  clientId:"c1", deptId:"d1", title:"Logo Redesign — Primary Mark",      description:"Create 3 concept directions for the primary logo.", stage:"in_progress",   priority:"critical", billingType:"retainer", isBillable:true,  isInvoiced:false, invoiceId:null,           invoiceDate:null,       paymentStatus:null,  estimatedHours:16, actualHours:8,  revisionCount:1, revisionOverheadHours:2,  assignedTo:"u6", createdBy:"u1", dueDate:dF(5),   completedAt:null,   createdAt:dA(10), tags:["branding","logo"],  transitions:[{from:null,to:"created",actor:"u1",comment:null,ts:dA(10)},{from:"created",to:"assigned",actor:"u3",comment:null,ts:dA(9)},{from:"assigned",to:"in_progress",actor:"u6",comment:null,ts:dA(8)},{from:"in_progress",to:"submitted",actor:"u6",comment:null,ts:dA(6)},{from:"submitted",to:"in_progress",actor:"u3",comment:"Concept B needs more contrast. Please revise the colour palette.",ts:dA(5),isRejection:true}]},
-  { id:"t2",  clientId:"c1", deptId:"d1", title:"Brand Guidelines Document",         description:"Compile full brand guidelines PDF.", stage:"submitted",     priority:"high",     billingType:"retainer", isBillable:true,  isInvoiced:false, invoiceId:null,           invoiceDate:null,       paymentStatus:null,  estimatedHours:12, actualHours:11, revisionCount:0, revisionOverheadHours:0,  assignedTo:"u7", createdBy:"u1", dueDate:dF(8),   completedAt:null,   createdAt:dA(12), tags:["brand","docs"],     transitions:[{from:null,to:"created",actor:"u1",comment:null,ts:dA(12)},{from:"created",to:"assigned",actor:"u3",comment:null,ts:dA(11)},{from:"assigned",to:"in_progress",actor:"u7",comment:null,ts:dA(10)},{from:"in_progress",to:"submitted",actor:"u7",comment:null,ts:dA(2)}]},
-  { id:"t3",  clientId:"c1", deptId:"d3", title:"Technical SEO Audit",               description:"Full crawl audit covering Core Web Vitals.", stage:"dept_approved", priority:"high",     billingType:"retainer", isBillable:true,  isInvoiced:false, invoiceId:null,           invoiceDate:null,       paymentStatus:null,  estimatedHours:20, actualHours:18, revisionCount:0, revisionOverheadHours:0,  assignedTo:"u8", createdBy:"u2", dueDate:dF(2),   completedAt:null,   createdAt:dA(15), tags:["seo","audit"],      transitions:[{from:null,to:"created",actor:"u2",comment:null,ts:dA(15)},{from:"created",to:"assigned",actor:"u4",comment:null,ts:dA(14)},{from:"assigned",to:"in_progress",actor:"u8",comment:null,ts:dA(13)},{from:"in_progress",to:"submitted",actor:"u8",comment:null,ts:dA(5)},{from:"submitted",to:"dept_approved",actor:"u4",comment:null,ts:dA(3)}]},
-  { id:"t4",  clientId:"c1", deptId:"d3", title:"Keyword Research & Content Map",    description:"200+ keyword clusters mapped to pages.", stage:"client_review", priority:"high",     billingType:"retainer", isBillable:true,  isInvoiced:false, invoiceId:null,           invoiceDate:null,       paymentStatus:null,  estimatedHours:10, actualHours:10, revisionCount:1, revisionOverheadHours:3,  assignedTo:"u8", createdBy:"u2", dueDate:dF(-1),  completedAt:null,   createdAt:dA(20), tags:["seo","research"],   transitions:[{from:null,to:"created",actor:"u2",comment:null,ts:dA(20)},{from:"created",to:"assigned",actor:"u4",comment:null,ts:dA(19)},{from:"assigned",to:"in_progress",actor:"u8",comment:null,ts:dA(18)},{from:"in_progress",to:"submitted",actor:"u8",comment:null,ts:dA(12)},{from:"submitted",to:"in_progress",actor:"u4",comment:"Please add SERP feature analysis column.",ts:dA(10),isRejection:true},{from:"in_progress",to:"submitted",actor:"u8",comment:null,ts:dA(7)},{from:"submitted",to:"dept_approved",actor:"u4",comment:null,ts:dA(5)},{from:"dept_approved",to:"client_review",actor:"u2",comment:null,ts:dA(3)}]},
-  { id:"t5",  clientId:"c2", deptId:"d4", title:"Homepage Wireframes",               description:"Low and mid-fidelity wireframes for homepage redesign.", stage:"completed",     priority:"high",     billingType:"one_time",  isBillable:true,  isInvoiced:true,  invoiceId:"INV-2026-001", invoiceDate:"2026-02-01", paymentStatus:"paid",estimatedHours:14, actualHours:15, revisionCount:0, revisionOverheadHours:0,  assignedTo:"u9", createdBy:"u2", dueDate:dF(-20), completedAt:dA(5),  createdAt:dA(35), tags:["ux","wireframe"],   transitions:[{from:null,to:"created",actor:"u2",comment:null,ts:dA(35)},{from:"created",to:"assigned",actor:"u5",comment:null,ts:dA(34)},{from:"assigned",to:"in_progress",actor:"u9",comment:null,ts:dA(33)},{from:"in_progress",to:"submitted",actor:"u9",comment:null,ts:dA(25)},{from:"submitted",to:"dept_approved",actor:"u5",comment:null,ts:dA(22)},{from:"dept_approved",to:"client_review",actor:"u2",comment:null,ts:dA(18)},{from:"client_review",to:"completed",actor:"u11",comment:null,ts:dA(5)}]},
-  { id:"t6",  clientId:"c2", deptId:"d4", title:"Product Category Page — Frontend",  description:"Build responsive frontend for product category pages.", stage:"assigned",      priority:"critical", billingType:"one_time",  isBillable:true,  isInvoiced:false, invoiceId:null,           invoiceDate:null,       paymentStatus:null,  estimatedHours:32, actualHours:0,  revisionCount:0, revisionOverheadHours:0,  assignedTo:"u9", createdBy:"u2", dueDate:dF(14),  completedAt:null,   createdAt:dA(3),  tags:["frontend","react"], transitions:[{from:null,to:"created",actor:"u2",comment:null,ts:dA(3)},{from:"created",to:"assigned",actor:"u5",comment:null,ts:dA(2)}]},
-  { id:"t7",  clientId:"c1", deptId:"d1", title:"Business Card Design",              description:"Design business cards for executive team.", stage:"completed",     priority:"medium",   billingType:"retainer", isBillable:true,  isInvoiced:true,  invoiceId:"INV-2026-002", invoiceDate:"2026-02-10", paymentStatus:"paid",estimatedHours:6,  actualHours:6,  revisionCount:0, revisionOverheadHours:0,  assignedTo:"u6", createdBy:"u1", dueDate:dF(-15), completedAt:dA(15), createdAt:dA(30), tags:["print","brand"],    transitions:[{from:null,to:"created",actor:"u1",comment:null,ts:dA(30)},{from:"created",to:"assigned",actor:"u3",comment:null,ts:dA(29)},{from:"assigned",to:"in_progress",actor:"u6",comment:null,ts:dA(28)},{from:"in_progress",to:"submitted",actor:"u6",comment:null,ts:dA(22)},{from:"submitted",to:"dept_approved",actor:"u3",comment:null,ts:dA(20)},{from:"dept_approved",to:"client_review",actor:"u2",comment:null,ts:dA(18)},{from:"client_review",to:"completed",actor:"u10",comment:null,ts:dA(15)}]},
-  { id:"t8",  clientId:"c3", deptId:"d2", title:"Product Launch Promo Video",        description:"60-second product launch video.", stage:"created",       priority:"critical", billingType:"one_time",  isBillable:true,  isInvoiced:false, invoiceId:null,           invoiceDate:null,       paymentStatus:null,  estimatedHours:40, actualHours:0,  revisionCount:0, revisionOverheadHours:0,  assignedTo:null, createdBy:"u2", dueDate:dF(20),  completedAt:null,   createdAt:dA(1),  tags:["video","launch"],   transitions:[{from:null,to:"created",actor:"u2",comment:null,ts:dA(1)}]},
-  { id:"t9",  clientId:"c1", deptId:"d3", title:"Monthly SEO Report — January",      description:"Comprehensive performance report.", stage:"completed",     priority:"medium",   billingType:"retainer", isBillable:true,  isInvoiced:false, invoiceId:null,           invoiceDate:null,       paymentStatus:null,  estimatedHours:5,  actualHours:4,  revisionCount:0, revisionOverheadHours:0,  assignedTo:"u8", createdBy:"u2", dueDate:dF(-25), completedAt:dA(25), createdAt:dA(40), tags:["seo","report"],     transitions:[{from:null,to:"created",actor:"u2",comment:null,ts:dA(40)},{from:"created",to:"assigned",actor:"u4",comment:null,ts:dA(39)},{from:"assigned",to:"in_progress",actor:"u8",comment:null,ts:dA(38)},{from:"in_progress",to:"submitted",actor:"u8",comment:null,ts:dA(28)},{from:"submitted",to:"dept_approved",actor:"u4",comment:null,ts:dA(27)},{from:"dept_approved",to:"client_review",actor:"u2",comment:null,ts:dA(26)},{from:"client_review",to:"completed",actor:"u10",comment:null,ts:dA(25)}]},
-  { id:"t10", clientId:"c4", deptId:"d5", title:"NexusPay Mobile App UI — Phase 1",  description:"Full UI overhaul for iOS and Android.", stage:"in_progress",   priority:"critical", billingType:"retainer", isBillable:true,  isInvoiced:false, invoiceId:null,           invoiceDate:null,       paymentStatus:null,  estimatedHours:80, actualHours:30, revisionCount:0, revisionOverheadHours:0,  assignedTo:"u9", createdBy:"u1", dueDate:dF(30),  completedAt:null,   createdAt:dA(20), tags:["mobile","ui"],      transitions:[{from:null,to:"created",actor:"u1",comment:null,ts:dA(20)},{from:"created",to:"assigned",actor:"u5",comment:null,ts:dA(19)},{from:"assigned",to:"in_progress",actor:"u9",comment:null,ts:dA(18)}]},
-  { id:"t11", clientId:"c3", deptId:"d6", title:"Instagram Content Calendar — March",description:"30 posts for March.", stage:"submitted",     priority:"medium",   billingType:"retainer", isBillable:true,  isInvoiced:false, invoiceId:null,           invoiceDate:null,       paymentStatus:null,  estimatedHours:15, actualHours:14, revisionCount:0, revisionOverheadHours:0,  assignedTo:"u6", createdBy:"u2", dueDate:dF(3),   completedAt:null,   createdAt:dA(8),  tags:["social","content"], transitions:[{from:null,to:"created",actor:"u2",comment:null,ts:dA(8)},{from:"created",to:"assigned",actor:"u3",comment:null,ts:dA(7)},{from:"assigned",to:"in_progress",actor:"u6",comment:null,ts:dA(6)},{from:"in_progress",to:"submitted",actor:"u6",comment:null,ts:dA(1)}]},
-];
+const SEED_TASKS = [];
 
-const SEED_INVOICES = [
-  { id:"inv1", number:"INV-2026-001", clientId:"c2", amount:31500,  status:"paid",    issuedDate:"2026-02-01", dueDate:"2026-02-15", paidDate:"2026-02-12", taskIds:["t5"] },
-  { id:"inv2", number:"INV-2026-002", clientId:"c1", amount:9000,   status:"paid",    issuedDate:"2026-02-10", dueDate:"2026-02-24", paidDate:"2026-02-20", taskIds:["t7"] },
-  { id:"inv3", number:"INV-2026-003", clientId:"c1", amount:150000, status:"sent",    issuedDate:"2026-02-20", dueDate:"2026-03-06", paidDate:null,         taskIds:[] },
-  { id:"inv4", number:"INV-2026-004", clientId:"c4", amount:360000, status:"overdue", issuedDate:"2026-01-15", dueDate:"2026-01-30", paidDate:null,         taskIds:[] },
-];
+const SEED_INVOICES = [];
 
 const SEED_AUTOMATIONS = [
   { id:"a1", name:"Notify PM on Dept Approval", trigger:"stage_change", triggerValue:"dept_approved", action:"notify_email",    actionValue:"pm",       active:true  },
@@ -398,19 +369,13 @@ function LoginScreen({ onLogin }) {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const DEMOS = [
-    { label: "Super Admin",     email: "sarah@agency.io",       role: "Full access" },
-    { label: "Project Manager", email: "marcus@agency.io",      role: "Client & approval mgmt" },
-    { label: "Dept. Manager",   email: "priya@agency.io",       role: "Design team (d1)" },
-    { label: "Team Member",     email: "leo@agency.io",         role: "Design team member" },
-    { label: "Client",          email: "client@techcorp.com",   role: "TechCorp portal" },
-  ];
+  const DEMOS = [];
 
   const handleLogin = () => {
     setError(""); setLoading(true);
     setTimeout(() => {
       const u = SEED_USERS.find(u => u.email === email.trim().toLowerCase() && u.password === password);
-      if (u) { onLogin(u); } else { setError("Invalid email or password. Try a demo account below."); }
+      if (u) { localStorage.setItem("wf_user", JSON.stringify(u)); onLogin(u); } else { setError("Invalid email or password. Please check your credentials."); }
       setLoading(false);
     }, 600);
   };
@@ -441,14 +406,14 @@ function LoginScreen({ onLogin }) {
             <div style={{ fontSize: 22, fontWeight: 900, color: T.text, marginBottom: 4 }}>Sign in</div>
             <div style={{ fontSize: 13, color: T.textLight, marginBottom: 24 }}>Enter your credentials to continue</div>
             {error && <div style={{ padding: "10px 14px", background: T.dangerBg, border: `1px solid ${T.dangerBorder}`, borderRadius: T.radiusSm, fontSize: 13, color: T.danger, marginBottom: 16 }}>{error}</div>}
-            <Inp label="Email" value={email} onChange={setEmail} type="email" placeholder="you@agency.io" required />
+            <Inp label="Email" value={email} onChange={setEmail} type="email" placeholder="your email" required />
             <div style={{ position: "relative" }}>
               <Inp label="Password" value={password} onChange={setPassword} type={showPass ? "text" : "password"} placeholder="••••••••" required />
               <button onClick={() => setShowPass(s => !s)} style={{ position: "absolute", right: 10, top: 30, background: "none", border: "none", cursor: "pointer", color: T.textLight, fontSize: 12, fontFamily: T.font }}>{showPass ? "Hide" : "Show"}</button>
             </div>
             <Btn full onClick={handleLogin} disabled={loading || !email || !password} size="lg" sx={{ marginTop: 4 }}>{loading ? "Signing in…" : "Sign In"}</Btn>
             <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${T.border}` }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: T.textLight, textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>Quick Demo — Click to fill</div>
+              
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {DEMOS.map(acc => (
                   <button key={acc.email} onClick={() => { setEmail(acc.email); setPassword(SEED_USERS.find(u => u.email === acc.email)?.password || ""); setError(""); }}
@@ -495,7 +460,7 @@ function TaskCard({ task, onClick, stages, depts }) {
       </div>
       <div style={{ fontSize: 10, color: T.textLight, fontFamily: T.fontMono, marginTop: 8 }}>Created: {new Date(task.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</div>
       {task.revisionCount > 0 && <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: T.warning, background: T.warningBg, padding: "2px 8px", borderRadius: 4 }}>🔄 {task.revisionCount} revision{task.revisionCount > 1 ? "s" : ""}</div>}
-      {task.estimatedHours > 0 && <div style={{ marginTop: 8 }}><Progress value={(task.actualHours / task.estimatedHours) * 100} color={task.actualHours > task.estimatedHours ? T.danger : T.blue} h={4} /><div style={{ fontSize: 9, color: T.textLight, marginTop: 2, fontFamily: T.fontMono }}>{task.actualHours}h / {task.estimatedHours}h</div></div>}
+      {task.estimatedHours > 0 && <div style={{ marginTop: 8 }}><Progress value={(task.actualHours / task.estimatedHours) * 100} color={task.actualHours > task.estimatedHours ? T.danger : T.blue} h={4} /><div style={{ fontSize: 9, color: T.textLight, marginTop: 2, fontFamily: T.fontMono }}>{Number(task.actualHours).toFixed(2)}h / {task.estimatedHours}h</div></div>}
     </Card>
   );
 }
@@ -504,7 +469,7 @@ function TaskCard({ task, onClick, stages, depts }) {
 // CREATE TASK MODAL — FIX #1 (client search), FIX #6 (billing type conditional)
 // ═══════════════════════════════════════════════════════════════════════
 function CreateTaskModal({ onClose, initialClient = "" }) {
-  const { setTasks, currentUser, stages, clients, depts } = useApp();
+  const { setTasks, currentUser, stages, clients, depts, users } = useApp();
   const [f, setF] = useState({ title: "", description: "", clientId: initialClient, deptId: "", priority: "medium", billingType: "retainer", isBillable: true, estimatedHours: 8, dueDate: dF(14), startDate: dF(0), tags: "" });
   const set = (k, v) => setF(p => ({ ...p, [k]: v }));
 
@@ -512,16 +477,27 @@ function CreateTaskModal({ onClose, initialClient = "" }) {
 
   const create = () => {
     if (!ok) return;
-    const t = {
+    
+    const dm = users.find(u => u.role === ROLES.DM && (Array.isArray(u.dept) ? u.dept.includes(f.deptId) : u.dept === f.deptId));
+        const t = {
       id: uuid(), clientId: f.clientId, deptId: f.deptId, title: f.title, description: f.description,
       stage: "created", priority: f.priority, billingType: f.isBillable ? f.billingType : "internal",
       isBillable: f.isBillable, isInvoiced: false, invoiceId: null, invoiceDate: null, paymentStatus: null,
       estimatedHours: parseFloat(f.estimatedHours) || 0, actualHours: 0, revisionCount: 0, revisionOverheadHours: 0,
-      assignedTo: null, createdBy: currentUser.id, dueDate: f.dueDate, completedAt: null,
+      assignedTo: dm?.id || null, createdBy: currentUser.id, dueDate: f.dueDate, completedAt: null,
       createdAt: new Date().toISOString(), tags: f.tags.split(",").map(x => x.trim()).filter(Boolean),
       transitions: [{ from: null, to: "created", actor: currentUser.id, comment: null, ts: new Date().toISOString() }],
     };
-    setTasks(p => [...p, t]); onClose();
+    const saveTask = async () => {
+      try {
+        await addDoc(collection(db, "tasks"), t);
+        onClose();
+      } catch (err) {
+        console.error("Error adding task: ", err);
+        alert("Could not save task to cloud. Please check your Firestore rules.");
+      }
+    };
+    saveTask();
   };
 
   return (
@@ -567,259 +543,270 @@ function CreateTaskModal({ onClose, initialClient = "" }) {
 // TASK DETAIL MODAL
 // ═══════════════════════════════════════════════════════════════════════
 function TaskDetail({ taskId, onClose }) {
-  const { tasks, currentUser, doTransition, updateTask, stages, clients, depts } = useApp();
-  const task = tasks.find(t => t.id === taskId);
+  const { tasks, stages, depts, clients, users, currentUser, updateTask, doTransition } = useApp();
   const [tab, setTab] = useState("overview");
   const [txnModal, setTxnModal] = useState(null);
   const [logH, setLogH] = useState("");
   const [logN, setLogN] = useState("");
+
+  const task = tasks.find(t => t.id === taskId);
   if (!task) return null;
 
   const dept = getDept(task.deptId, depts);
   const client = getClient(task.clientId, clients);
-  const assignee = getUser(task.assignedTo, typeof useApp === "function" ? useApp()?.users : null);
+  const assignee = getUser(task.assignedTo, users);
   const ov = isOverdue(task);
   const S = stages || STAGES_DEFAULT;
 
   const available = (TRANSITIONS_DEFAULT[task.stage] || []).filter(tx => tx.roles.includes(currentUser.role));
 
+  const TABS = [
+    ["overview", "Overview"],
+    ["execution", "Checklist & Subtasks"],
+    ["discussion", `Discussion (${task.comments?.length || 0})`],
+    ["timeline", `Timeline (${(task.transitions || []).length})`],
+    ["history", "Time History"],
+    ["billing", "Billing"],
+    ["notes", "Notes"]
+  ];
+
   return (
-    <Modal title={task.title} onClose={onClose} width={700}>
+    <Modal title={task.title} onClose={onClose} width={750}>
       <Pipeline currentStage={task.stage} stages={S} />
       <div style={{ height: 1, background: T.border, margin: "14px 0" }} />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginBottom: 16 }}>
-        {[[dept ? `${dept.icon} ${dept.name}` : "—", "Dept", dept?.color || T.textMid], [PRIORITY_CFG[task.priority]?.label, "Priority", PRIORITY_CFG[task.priority]?.color], [BILLING_CFG[task.billingType]?.label || "—", "Billing", BILLING_CFG[task.billingType]?.color || T.textMid], [client?.name || "—", "Client", T.text]].map(([v, l, c]) => (
-          <div key={l} style={{ background: T.bg, borderRadius: T.radiusSm, padding: "9px 11px" }}>
+      
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 16 }}>
+        {[[dept ? `${dept.icon} ${dept.name}` : "—", "Dept", dept?.color || T.textMid], 
+          [PRIORITY_CFG[task.priority]?.label, "Priority", PRIORITY_CFG[task.priority]?.color], 
+          [BILLING_CFG[task.billingType]?.label || "—", "Billing", BILLING_CFG[task.billingType]?.color], 
+          [client?.name || "—", "Client", T.text]].map(([v, l, c]) => (
+          <div key={l} style={{ background: T.bg, borderRadius: T.radiusSm, padding: "10px 12px" }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: T.textLight, textTransform: "uppercase", marginBottom: 2 }}>{l}</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: c }}>{v}</div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: c }}>{v}</div>
           </div>
         ))}
       </div>
-      <div style={{ display: "flex", borderBottom: `1px solid ${T.border}`, marginBottom: 16 }}>
-        {[["overview", "Overview"], ["work", "Work & Subtasks"], ["discussion", `Discussion (${task.comments?.length||0})`], ["timeline", `Timeline (${task.transitions.length})`], ["billing", "Billing"]].map(([id, lbl]) => (
-          <button key={id} onClick={() => setTab(id)} style={{ padding: "8px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: tab === id ? 800 : 500, fontFamily: T.font, color: tab === id ? T.blue : T.textMid, borderBottom: tab === id ? `2px solid ${T.blue}` : "2px solid transparent", marginBottom: -1 }}>{lbl}</button>
+
+      <div style={{ display: "flex", borderBottom: `1px solid ${T.border}`, marginBottom: 16, gap: 4, overflowX: "auto" }}>
+        {TABS.map(([id, lbl]) => (
+          <button key={id} onClick={() => setTab(id)} 
+            style={{ padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: tab === id ? 800 : 500, fontFamily: T.font, color: tab === id ? T.blue : T.textMid, borderBottom: tab === id ? `2px solid ${T.blue}` : "2px solid transparent", marginBottom: -1, whiteSpace: "nowrap" }}>
+            {lbl}
+          </button>
         ))}
       </div>
-      {tab === "overview" && (
-        <>
-          {task.description && <div style={{ fontSize: 13, color: T.textMid, lineHeight: 1.7, marginBottom: 16, padding: 12, background: T.bg, borderRadius: T.radiusSm }}>{task.description}</div>}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-            <div><div style={{ fontSize: 11, fontWeight: 700, color: T.textLight, textTransform: "uppercase", marginBottom: 6 }}>Assignee</div>
-              {assignee ? <div style={{ display: "flex", alignItems: "center", gap: 8 }}><Av userId={task.assignedTo} size={28} /><div><div style={{ fontSize: 13, fontWeight: 700 }}>{assignee.name}</div><div style={{ fontSize: 11, color: T.textLight }}>{ROLE_LABELS[assignee.role]}</div></div></div> : <span style={{ fontSize: 12, color: T.textLight }}>Unassigned</span>}
-            </div>
-            <div><div style={{ fontSize: 11, fontWeight: 700, color: T.textLight, textTransform: "uppercase", marginBottom: 6 }}>Dates</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: T.textMid }}><span style={{color: T.textLight}}>Start:</span> {task.startDate ? relTime(task.startDate) : "—"}</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: ov ? T.danger : T.text }}><span style={{color: T.textLight}}>Due:</span> {task.dueDate ? relTime(task.dueDate) : "—"}{ov && <span style={{ color: T.danger, marginLeft: 6, fontSize: 11, fontWeight: 700 }}>OVERDUE</span>}</div>
-            </div>
-          </div>
-          <div style={{ background: T.bg, borderRadius: T.radiusSm, padding: 14, marginBottom: 14 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: T.textLight, textTransform: "uppercase", marginBottom: 10 }}>Time Tracking</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 10 }}>
-              {[["Logged", `${task.actualHours}h`, T.blue], ["Estimated", `${task.estimatedHours}h`, T.textMid], ["Remaining", `${Math.max(0, task.estimatedHours - task.actualHours)}h`, task.actualHours > task.estimatedHours ? T.danger : T.success]].map(([l, v, c]) => (
-                <div key={l} style={{ textAlign: "center" }}><div style={{ fontSize: 20, fontWeight: 900, color: c, fontFamily: T.fontMono }}>{v}</div><div style={{ fontSize: 10, color: T.textLight }}>{l}</div></div>
-              ))}
-            </div>
-            <Progress value={(task.actualHours / task.estimatedHours) * 100} color={task.actualHours > task.estimatedHours ? T.danger : T.blue} />
-            {task.stage !== "completed" && (
-              <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
-                {!task.timerStart ? (
-                  <Btn size="sm" onClick={() => updateTask(task.id, { timerStart: new Date().toISOString() })}>▶ Start Timer</Btn>
-                ) : (
-                  <Btn size="sm" variant="danger" onClick={() => {
-                    const h = (new Date() - new Date(task.timerStart)) / 3600000;
-                    updateTask(task.id, { actualHours: task.actualHours + h, timerStart: null });
-                  }}>⏹ Stop Timer</Btn>
-                )}
-                <div style={{ width: 1, height: 24, background: T.border }} />
-                <span style={{ fontSize: 12, fontWeight: 600 }}>Manual:</span>
-                <input value={logH} onChange={e => setLogH(e.target.value)} type="number" placeholder="hrs" style={{ width: 70, padding: "7px 10px", border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: 13, fontFamily: T.font }} />
-                <input value={logN} onChange={e => setLogN(e.target.value)} placeholder="Note" style={{ flex: 1, padding: "7px 10px", border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: 13, fontFamily: T.font }} />
-                <Btn size="sm" onClick={() => { const h = parseFloat(logH); if (h > 0) { updateTask(task.id, { actualHours: task.actualHours + h }); setLogH(""); setLogN(""); } }}>Log Time</Btn>
+
+      <div style={{ minHeight: 300 }}>
+        {tab === "overview" && (
+          <div style={{ animation: "mIn .2s ease" }}>
+            {task.description && <div style={{ fontSize: 13, color: T.textMid, lineHeight: 1.7, marginBottom: 16, padding: 14, background: T.bg, borderRadius: T.radiusSm }}>{task.description}</div>}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: T.textLight, textTransform: "uppercase", marginBottom: 8 }}>Assignee</div>
+                {assignee ? <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Av userId={task.assignedTo} size={32} /><div><div style={{ fontSize: 13, fontWeight: 700 }}>{assignee.name}</div><div style={{ fontSize: 11, color: T.textLight }}>{ROLE_LABELS[assignee.role]}</div></div></div> : <span style={{ fontSize: 12, color: T.textLight }}>Unassigned</span>}
               </div>
-            )}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: T.textLight, textTransform: "uppercase", marginBottom: 8 }}>Schedule</div>
+                <div style={{ fontSize: 12, marginBottom: 2 }}><span style={{color: T.textLight}}>Start:</span> {task.startDate ? relTime(task.startDate) : "—"}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: ov ? T.danger : T.text }}><span style={{color: T.textLight}}>Due:</span> {task.dueDate ? relTime(task.dueDate) : "—"}{ov && <span style={{ color: T.danger, marginLeft: 6 }}>OVERDUE</span>}</div>
+              </div>
+            </div>
+            
+            <div style={{ background: T.bg, borderRadius: T.radiusSm, padding: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: T.textLight, textTransform: "uppercase", marginBottom: 12 }}>Performance & Time</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 14 }}>
+                {[["Logged", `${Number(task.actualHours).toFixed(2)}h`, T.blue], ["Estimated", `${task.estimatedHours}h`, T.textMid], ["Delta", `${(task.estimatedHours - task.actualHours).toFixed(2)}h`, task.actualHours > task.estimatedHours ? T.danger : T.success]].map(([l, v, c]) => (
+                  <div key={l} style={{ textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 900, color: c, fontFamily: T.fontMono }}>{v}</div><div style={{ fontSize: 10, color: T.textLight }}>{l}</div></div>
+                ))}
+              </div>
+              <Progress value={(task.actualHours / (task.estimatedHours||1)) * 100} color={task.actualHours > task.estimatedHours ? T.danger : T.blue} />
+              {task.stage === "in_progress" && (
+                <div style={{ display: "flex", gap: 10, marginTop: 16, alignItems: "center" }}>
+                  {!task.timerStart ? (
+                    <Btn onClick={() => updateTask(task.id, { timerStart: new Date().toISOString() })}>▶ Start Tracking</Btn>
+                  ) : (
+                    <Btn variant="danger" onClick={() => {
+                      const dur = ((new Date() - new Date(task.timerStart)) / 3600000);
+                      const entry = { start: task.timerStart, end: new Date().toISOString(), duration: dur, userId: currentUser.id };
+                      updateTask(task.id, { actualHours: task.actualHours + dur, timerStart: null, timeLog: [...(task.timeLog || []), entry] });
+                    }}>⏹ Stop & Log Session</Btn>
+                  )}
+                  <div style={{ width: 1, height: 20, background: T.border }} />
+                  <input value={logH} onChange={e => setLogH(e.target.value)} type="number" placeholder="Hrs" style={{ width: 60, padding: 8, borderRadius: 4, border: `1px solid ${T.border}` }} />
+                  <Btn size="sm" variant="ghost" onClick={() => { const h = parseFloat(logH); if(h) { updateTask(task.id, { actualHours: task.actualHours + h }); setLogH(""); } }}>+ Manual</Btn>
+                </div>
+              )}
+            </div>
           </div>
-          {task.revisionCount > 0 && <div style={{ padding: 12, background: T.warningBg, border: `1px solid ${T.warningBorder}`, borderRadius: T.radiusSm, fontSize: 12, color: T.warning, fontWeight: 600 }}>⚠ {task.revisionCount} revision{task.revisionCount > 1 ? "s" : ""} · {task.revisionOverheadHours}h overhead lost</div>}
-        </>
+        )}
+
+        {tab === "execution" && (
+          <div style={{ animation: "mIn .2s ease" }}>
+            <div style={{ background: T.surfaceElev, padding: 16, borderRadius: T.radiusSm, border: `1px solid ${T.border}`, marginBottom: 20 }}>
+              <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 10 }}>Actionable Checklist</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {(task.checklist || []).map((ch, i) => (
+                  <div key={i} style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <input type="checkbox" checked={ch.done} onChange={async() => { const n = [...(task.checklist||[])]; n[i].done = !n[i].done; await updateTask(task.id, { checklist: n }); }} />
+                    <input value={ch.text} onChange={async(e) => { const n = [...(task.checklist||[])]; n[i].text = e.target.value; await updateTask(task.id, { checklist: n }); }} style={{ flex: 1, background: "none", border: "none", fontSize: 13, outline: "none", textDecoration: ch.done ? "line-through" : "none" }} />
+                    <button style={{ background: "none", border: "none", color: T.danger, cursor: "pointer" }} onClick={async() => await updateTask(task.id, { checklist: task.checklist.filter((_, idx) => idx !== i) })}>×</button>
+                  </div>
+                ))}
+                <input placeholder="+ New checklist item..." style={{ marginTop: 8, padding: 8, fontSize: 12, border: `1px solid ${T.border}`, borderRadius: 4 }} 
+                  onKeyDown={async e => { if(e.key === "Enter" && e.target.value) { await updateTask(task.id, { checklist: [...(task.checklist||[]), { text: e.target.value, done: false }] }); e.target.value = ""; } }} />
+              </div>
+            </div>
+            
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 800 }}>Subtasks (Work Units)</div>
+              <Btn size="sm" variant="ghost" onClick={async () => { const t = prompt("Title:"); if(t) await updateTask(task.id, { subtasks: [...(task.subtasks||[]), { id: uuid(), title: t, status: "pending", ts: new Date().toISOString() }] }); }}>+ Add</Btn>
+            </div>
+            {(task.subtasks || []).map((st, i) => (
+              <div key={st.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: 12, background: T.bg, borderRadius: T.radiusSm, border: `1px solid ${T.border}`, marginBottom: 8 }}>
+                <div style={{ flex: 1, fontWeight: 700, fontSize: 13 }}>{st.title}</div>
+                <select value={st.status} onChange={async e => { const n = [...task.subtasks]; n[i].status = e.target.value; await updateTask(task.id, { subtasks: n }); }} style={{ padding: 4, borderRadius: 4 }}>
+                  <option value="pending">Pending</option>
+                  <option value="done">Completed</option>
+                </select>
+                <Btn size="sm" variant="ghost" onClick={async () => {
+                  const nt = { ...task, id: uuid(), title: st.title, subtasks: [], checklist: [], transitions: [], actualHours: 0, timerStart: null, createdAt: new Date().toISOString() };
+                  await addDoc(collection(db, "tasks"), nt);
+                  await updateTask(task.id, { subtasks: task.subtasks.filter(x => x.id !== st.id) });
+                }}>Convert</Btn>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {tab === "discussion" && (
+          <div style={{ animation: "mIn .2s ease" }}>
+            <div style={{ maxHeight: 300, overflowY: "auto", paddingRight: 8, marginBottom: 16 }}>
+              {(task.comments || []).map(c => {
+                const u = getUser(c.userId, users);
+                return (
+                  <div key={c.id} style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+                    <Av userId={c.userId} size={32} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
+                        <span style={{ fontWeight: 800, fontSize: 13 }}>{u?.name || "User"}</span>
+                        <span style={{ fontSize: 10, color: T.textLight }}>{relTime(c.ts)}</span>
+                      </div>
+                      <div style={{ fontSize: 13, lineHeight: 1.5, color: T.textMid }}>{c.text}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <input placeholder="Add a comment... (Enter to post)" style={{ width: "100%", padding: 12, border: `1px solid ${T.border}`, borderRadius: T.radiusSm }} 
+              onKeyDown={async e => { if(e.key === "Enter" && e.target.value) { await updateTask(task.id, { comments: [...(task.comments||[]), { id: uuid(), text: e.target.value, userId: currentUser.id, ts: new Date().toISOString() }] }); e.target.value = ""; } }} />
+          </div>
+        )}
+
+        {tab === "history" && (
+          <div style={{ animation: "mIn .2s ease" }}>
+            <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 12 }}>Time Audit Log</div>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead style={{ background: T.bg, fontSize: 10, color: T.textLight }}>
+                <tr><th style={{ padding: 8, textAlign: "left" }}>Member</th><th style={{ padding: 8, textAlign: "left" }}>Session Period</th><th style={{ padding: 8, textAlign: "right" }}>Dur.</th></tr>
+              </thead>
+              <tbody>
+                {(task.timeLog || []).map((l, i) => (
+                  <tr key={i} style={{ borderBottom: `1px solid ${T.border}`, fontSize: 12 }}>
+                    <td style={{ padding: 8 }}>{getUser(l.userId, users)?.name.split(" ")[0]}</td>
+                    <td style={{ padding: 8, color: T.textMid }}>{new Date(l.start).toLocaleTimeString()} - {new Date(l.end).toLocaleTimeString()}<br/><small>{new Date(l.start).toLocaleDateString()}</small></td>
+                    <td style={{ padding: 8, textAlign: "right", fontWeight: 700 }}>{Number(l.duration).toFixed(2)}h</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {tab === "timeline" && (
+          <div style={{ animation: "mIn .2s ease" }}>
+            {(task.transitions || []).slice().reverse().map((t, i) => {
+              const actor = getUser(t.actor, users);
+              return (
+                <div key={i} style={{ display: "flex", gap: 12, paddingBottom: 16, borderLeft: "2px solid #E2E8F0", marginLeft: 8, paddingLeft: 16, position: "relative" }}>
+                   <div style={{ position: "absolute", left: -6, top: 0, width: 10, height: 10, borderRadius: "50%", background: T.blue }} />
+                   <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, display: "flex", gap: 8, alignItems: "center" }}>
+                      {actor?.name || "System"} <span style={{ fontWeight: 400, color: T.textLight }}>{relTime(t.ts)}</span>
+                    </div>
+                    <div style={{ fontSize: 12, marginTop: 4 }}>
+                      Moved from <Badge stage={t.from} /> to <Badge stage={t.to} />
+                    </div>
+                    {t.comment && <div style={{ fontSize: 12, color: T.textMid, background: T.bg, padding: 8, marginTop: 8, borderRadius: 4, borderLeft: `3px solid ${T.blue}` }}>{t.comment}</div>}
+                   </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {tab === "notes" && (
+          <div style={{ animation: "mIn .2s ease" }}>
+            <textarea placeholder="Private internal notes..." value={task.notes || ""} onChange={async e => await updateTask(task.id, { notes: e.target.value })} 
+              style={{ width: "100%", height: 300, padding: 16, borderRadius: T.radiusSm, border: `1px solid ${T.border}`, fontSize: 13, lineHeight: 1.6, background: T.surfaceElev }} />
+            <div style={{ fontSize: 11, color: T.textLight, marginTop: 8 }}>Changes are saved automatically.</div>
+          </div>
+        )}
+
+        {tab === "billing" && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+             {[["Invoiced", task.isInvoiced ? "Yes" : "No"], ["Total Hours", `${Number(task.actualHours).toFixed(2)}h`], ["Rate Lock", "Standard"]].map(([l, v]) => (
+               <Card key={l} sx={{ padding: 12, background: T.bg }}><div style={{ fontSize: 10, fontWeight: 700, color: T.textLight }}>{l}</div><div style={{ fontSize: 15, fontWeight: 800 }}>{v}</div></Card>
+             ))}
+          </div>
+        )}
+      </div>
+
+      {task.stage !== "completed" && available.length > 0 && (
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${T.border}`, display: "flex", gap: 10, alignItems: "center" }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: T.textLight }}>Transitions:</span>
+          {available.map(tx => <Btn key={tx.action} variant={tx.isReject ? "danger" : "primary"} size="sm" onClick={() => setTxnModal(tx)}>{tx.label}</Btn>)}
+        </div>
       )}
       
-      {tab === "work" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          <div style={{ background: T.bg, padding: 14, borderRadius: T.radiusSm }}>
-            <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 10, color: T.text }}>Subtasks</div>
-            <div style={{ fontSize: 11, color: T.textMid, marginBottom: 12 }}>Larger tasks divided into components</div>
-            {(task.subtasks || []).map(st => (
-              <div key={st.id} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6, padding: "6px 0", borderBottom: `1px solid ${T.border}` }}>
-                <input type="checkbox" checked={st.completed} onChange={e => updateTask(task.id, { subtasks: task.subtasks.map(x => x.id === st.id ? {...x, completed: e.target.checked} : x) })} />
-                <span style={{ fontSize: 13, color: st.completed ? T.textLight : T.text, textDecoration: st.completed ? "line-through" : "none", flex: 1 }}>{st.title}</span>
-                <Btn size="sm" variant="ghost" onClick={() => updateTask(task.id, { subtasks: task.subtasks.filter(x => x.id !== st.id) })}>×</Btn>
-              </div>
-            ))}
-            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-              <input id="newSt" placeholder="New subtask..." style={{ flex: 1, padding: "6px 8px", fontSize: 12, borderRadius: T.radiusSm, border: `1px solid ${T.border}` }} onKeyDown={(e) => {
-                if(e.key === "Enter" && e.target.value) {
-                  updateTask(task.id, { subtasks: [...(task.subtasks||[]), { id: uuid(), title: e.target.value, completed: false }] });
-                  e.target.value = "";
-                }
-              }} />
-            </div>
-          </div>
-          <div style={{ background: T.bg, padding: 14, borderRadius: T.radiusSm }}>
-            <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 10, color: T.text }}>To-Do List</div>
-            <div style={{ fontSize: 11, color: T.textMid, marginBottom: 12 }}>Checklists or minor requirements</div>
-            {(task.todos || []).map(td => (
-              <div key={td.id} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6, padding: "6px 0", borderBottom: `1px solid ${T.border}` }}>
-                <input type="checkbox" checked={td.completed} onChange={e => updateTask(task.id, { todos: task.todos.map(x => x.id === td.id ? {...x, completed: e.target.checked} : x) })} />
-                <span style={{ fontSize: 13, color: td.completed ? T.textLight : T.text, textDecoration: td.completed ? "line-through" : "none", flex: 1 }}>{td.title}</span>
-                <Btn size="sm" variant="ghost" onClick={() => updateTask(task.id, { todos: task.todos.filter(x => x.id !== td.id) })}>×</Btn>
-              </div>
-            ))}
-            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-              <input id="newTd" placeholder="New to-do item..." style={{ flex: 1, padding: "6px 8px", fontSize: 12, borderRadius: T.radiusSm, border: `1px solid ${T.border}` }} onKeyDown={(e) => {
-                if(e.key === "Enter" && e.target.value) {
-                  updateTask(task.id, { todos: [...(task.todos||[]), { id: uuid(), title: e.target.value, completed: false }] });
-                  e.target.value = "";
-                }
-              }} />
-            </div>
-          </div>
-        </div>
-      )}
-      {tab === "discussion" && (
-        <div style={{ padding: "0 4px" }}>
-          {(task.comments || []).map(c => {
-             const usr = getUser(c.userId, typeof useApp === "function" ? useApp()?.users : null);
-             return (
-               <div key={c.id} style={{ marginBottom: 16 }}>
-                 <div style={{ display: "flex", gap: 10, background: T.bg, padding: 12, borderRadius: T.radiusSm }}>
-                   <Av userId={c.userId} size={28} />
-                   <div style={{ flex: 1 }}>
-                     <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}><span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{usr?.name || "User"}</span><span style={{ fontSize: 10, color: T.textLight }}>{relTime(c.ts)}</span></div>
-                     <div style={{ fontSize: 13, color: T.text, lineHeight: 1.5 }}>{c.text}</div>
-                     <div style={{ marginTop: 6 }}><span style={{ fontSize: 11, color: T.blue, cursor: "pointer", fontWeight: 700 }} onClick={() => document.getElementById(`reply-${c.id}`).style.display = 'block'}>Reply</span></div>
-                   </div>
-                 </div>
-                 <div style={{ marginLeft: 38, borderLeft: `2px solid ${T.border}` }}>
-                   {(c.replies || []).map(rp => {
-                     const rUsr = getUser(rp.userId, typeof useApp === "function" ? useApp()?.users : null);
-                     return (
-                       <div key={rp.id} style={{ display: "flex", gap: 10, padding: "10px 12px", borderBottom: `1px solid ${T.border}` }}>
-                         <Av userId={rp.userId} size={20} />
-                         <div>
-                           <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 2 }}><span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>{rUsr?.name || "User"}</span><span style={{ fontSize: 10, color: T.textLight }}>{relTime(rp.ts)}</span></div>
-                           <div style={{ fontSize: 12, color: T.text }}>{rp.text}</div>
-                         </div>
-                       </div>
-                     );
-                   })}
-                   <div id={`reply-${c.id}`} style={{ display: "none", padding: "10px 12px" }}>
-                     <input placeholder="Write a reply..." style={{ width: "100%", padding: "8px 10px", fontSize: 12, borderRadius: T.radiusSm, border: `1px solid ${T.border}` }} onKeyDown={(e) => {
-                       if (e.key === "Enter" && e.target.value) {
-                         const repls = c.replies || [];
-                         const nComms = task.comments.map(x => x.id === c.id ? {...x, replies: [...repls, { id: uuid(), text: e.target.value, userId: currentUser.id, ts: new Date().toISOString() }]} : x);
-                         updateTask(task.id, { comments: nComms });
-                         e.target.value = "";
-                         e.target.parentElement.style.display = "none";
-                       }
-                     }} />
-                   </div>
-                 </div>
-               </div>
-             )
-          })}
-          <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
-            <Av userId={currentUser.id} size={32} />
-            <input placeholder="Add a comment... (Enter to post)" style={{ flex: 1, padding: "10px 12px", fontSize: 13, borderRadius: T.radiusSm, border: `1px solid ${T.border}` }} onKeyDown={(e) => {
-              if (e.key === "Enter" && e.target.value) {
-                updateTask(task.id, { comments: [...(task.comments||[]), { id: uuid(), text: e.target.value, userId: currentUser.id, ts: new Date().toISOString(), replies: [] }] });
-                e.target.value = "";
-              }
-            }} />
-          </div>
-        </div>
-      )}
-
-      {tab === "timeline" && (
-        <div>
-          {[...task.transitions].reverse().map((tr, i) => {
-            const actor = getUser(tr.actor, typeof useApp === "function" ? useApp()?.users : null);
-            return (
-              <div key={i} style={{ display: "flex", gap: 12, paddingBottom: 16, borderLeft: `2px solid ${tr.isRejection ? T.danger : T.border}`, paddingLeft: 14, marginLeft: 6, position: "relative" }}>
-                <div style={{ position: "absolute", left: -7, top: 0, width: 12, height: 12, borderRadius: "50%", background: tr.isRejection ? T.danger : T.blue, border: `2px solid ${T.surface}` }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                    {actor && <Av userId={tr.actor} size={20} />}
-                    <span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>{actor?.name || "System"}</span>
-                    <span style={{ fontSize: 10, color: T.textLight }}>{relTime(tr.ts)}</span>
-                    {tr.isRejection && <span style={{ fontSize: 10, fontWeight: 700, color: T.danger, background: T.dangerBg, padding: "1px 6px", borderRadius: 10 }}>REVISION</span>}
-                  </div>
-                  <div style={{ fontSize: 12, color: T.textMid }}>{tr.from ? <span>Moved → <Badge stage={tr.to} stages={S} /></span> : <span>Created → <Badge stage={tr.to} stages={S} /></span>}</div>
-                  {tr.comment && <div style={{ marginTop: 6, padding: "8px 10px", background: tr.isRejection ? T.dangerBg : T.blueLight, borderRadius: T.radiusSm, fontSize: 12, color: T.textMid, borderLeft: `3px solid ${tr.isRejection ? T.danger : T.blue}` }}>{tr.comment}</div>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {tab === "billing" && (
-        <div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
-            {[["Billable", task.isBillable ? "Yes" : "No", task.isBillable ? T.success : T.textMid], ["Invoiced", task.isInvoiced ? "Yes" : "No", task.isInvoiced ? T.success : T.textMid], ["Invoice ID", task.invoiceId || "—", T.textMid], ["Payment", task.paymentStatus || "—", task.paymentStatus === "paid" ? T.success : T.warning]].map(([l, v, c]) => (
-              <div key={l} style={{ background: T.bg, padding: "10px 12px", borderRadius: T.radiusSm }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: T.textLight, textTransform: "uppercase", marginBottom: 3 }}>{l}</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: c }}>{v}</div>
-              </div>
-            ))}
-          </div>
-          {task.isBillable && !task.isInvoiced && task.stage === "completed" && <div style={{ padding: 12, background: T.dangerBg, border: `1px solid ${T.dangerBorder}`, borderRadius: T.radiusSm, fontSize: 12, fontWeight: 700, color: T.danger }}>⚠ Completed & billable but NOT invoiced — revenue leakage risk</div>}
-        </div>
-      )}
-      {task.stage !== "completed" && available.length > 0 && (
-        <div style={{ paddingTop: 16, borderTop: `1px solid ${T.border}`, display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12, alignItems: "center" }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: T.textLight }}>Actions:</span>
-          {available.map(tx => <Btn key={tx.action} variant={tx.isReject ? "danger" : tx.action.includes("approve") || tx.action === "send_client" ? "success" : "primary"} size="sm" onClick={() => setTxnModal(tx)}>{tx.label}</Btn>)}
-        </div>
-      )}
-      {task.stage === "completed" && <div style={{ marginTop: 16, padding: 12, background: T.successBg, border: `1px solid ${T.successBorder}`, borderRadius: T.radiusSm, fontSize: 13, fontWeight: 700, color: T.success }}>✓ Task completed & locked.</div>}
-      {txnModal && <TxnModal task={task} tx={txnModal} onConfirm={(comment, assigneeId) => { doTransition(task.id, txnModal, comment, assigneeId); setTxnModal(null); onClose(); }} onClose={() => setTxnModal(null)} />}
+      {txnModal && <TxnModal task={task} tx={txnModal} onClose={() => setTxnModal(null)} onConfirm={(c, a) => { doTransition(task.id, txnModal, c, a); setTxnModal(null); onClose(); }} />}
     </Modal>
   );
 }
 
-function TxnModal({ task, tx, onConfirm, onClose }) {
+function TxnModal({ task, tx, onClose, onConfirm }) {
+  const { users } = useApp();
   const [comment, setComment] = useState("");
   const [assignee, setAssignee] = useState("");
-  const ctx = typeof useApp === "function" ? useApp() : {};
-  const deptMembers = (ctx.users || SEED_USERS).filter(u => u.role === ROLES.TM && (Array.isArray(u.dept) ? u.dept.includes(task.deptId) : u.dept === task.deptId));
-  const canSubmit = !tx.needsComment || comment.trim().length >= 10;
+  const deptMembers = (users || []).filter(u => u.role === ROLES.TM && (Array.isArray(u.dept) ? u.dept.includes(task.deptId) : u.dept === task.deptId));
+  const needsAssign = tx.needsAssignee || (!task.assignedTo && tx.to !== "created");
+
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(13,27,62,.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 3000, backdropFilter: "blur(4px)" }}>
-      <div style={{ background: T.surface, borderRadius: T.radiusLg, width: "100%", maxWidth: 420, boxShadow: T.shadowLg, padding: 24, animation: "mIn .2s ease" }}>
-        <div style={{ fontSize: 16, fontWeight: 800, color: T.text, marginBottom: 6 }}>{tx.label}</div>
-        <div style={{ fontSize: 13, color: T.textMid, marginBottom: 16, display: "flex", gap: 8, alignItems: "center" }}>
-          <Badge stage={task.stage} /> → <Badge stage={tx.to} />
-        </div>
-        {tx.needsAssignee && <Sel label="Assign to" value={assignee} onChange={setAssignee} required options={deptMembers.map(u => ({ value: u.id, label: u.name }))} />}
-        {tx.needsComment && <><Inp label="Reason (required, min 10 chars)" value={comment} onChange={setComment} as="textarea" required placeholder="Provide clear feedback…" />{comment.length > 0 && comment.length < 10 && <div style={{ fontSize: 11, color: T.danger, marginTop: -10, marginBottom: 10 }}>Min 10 characters</div>}</>}
-        {!tx.needsComment && !tx.needsAssignee && <Inp label="Comment (optional)" value={comment} onChange={setComment} as="textarea" placeholder="Optional note…" />}
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
-          <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
-          <Btn variant={tx.isReject ? "danger" : "primary"} disabled={!canSubmit || (tx.needsAssignee && !assignee)} onClick={() => onConfirm(comment || null, assignee || null)}>Confirm</Btn>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(13,27,62,.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, backdropFilter: "blur(4px)" }}>
+      <div style={{ background: T.surface, borderRadius: T.radiusLg, width: "100%", maxWidth: 400, padding: 24 }}>
+        <div style={{ fontWeight: 800, marginBottom: 8 }}>{tx.label}</div>
+        <div style={{ fontSize: 12, color: T.textLight, marginBottom: 16 }}>Confirm stage move to <Badge stage={tx.to} /></div>
+        
+        {needsAssign && <Sel label="Assign to Member" value={assignee} onChange={setAssignee} options={deptMembers.map(u => ({ value: u.id, label: u.name }))} required />}
+        {tx.needsComment && <Inp label="Reason / Feedback" value={comment} onChange={setComment} as="textarea" placeholder="Minimum 10 characters..." required />}
+        
+        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+          <Btn variant="secondary" onClick={onClose} full>Cancel</Btn>
+          <Btn onClick={() => onConfirm(comment, assignee)} disabled={tx.needsComment && comment.length < 10} full>Confirm</Btn>
         </div>
       </div>
     </div>
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// VIEWS
-// ═══════════════════════════════════════════════════════════════════════
+
 function ListView({ tasks, onTaskClick, stages, depts }) {
+  const { users } = useApp();
   if (!tasks.length) return <div style={{ padding: 40, textAlign: "center", color: T.textLight, fontSize: 13 }}>No tasks match your filters.</div>;
   return (
     <Card sx={{ overflow: "hidden" }}>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead><tr style={{ background: T.bg }}>
-          {["Task", "Client", "Created", "Status", "Priority", "Assignee", "Due", "Hours", ""].map(h => (
+          {["Task", "Client", "Status", "Assigner", "Assignee", "Priority", "Due", "Hours", ""].map(h => (
             <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 800, color: T.textLight, textTransform: "uppercase", letterSpacing: ".05em", borderBottom: `1px solid ${T.border}`, whiteSpace: "nowrap" }}>{h}</th>
           ))}
         </tr></thead>
@@ -840,13 +827,16 @@ function ListView({ tasks, onTaskClick, stages, depts }) {
                 <td style={{ padding: "12px 14px", borderBottom: `1px solid ${T.border}` }}><Badge stage={t.stage} stages={stages} /></td>
                 <td style={{ padding: "12px 14px", borderBottom: `1px solid ${T.border}` }}><PBadge priority={t.priority} /></td>
                 <td style={{ padding: "12px 14px", borderBottom: `1px solid ${T.border}` }}>
-                  {t.assignedTo ? <div style={{ display: "flex", alignItems: "center", gap: 6 }}><Av userId={t.assignedTo} size={22} /><span style={{ fontSize: 11, color: T.textMid }}>{(getUser(t.assignedTo, typeof useApp === "function" ? useApp()?.users : null)?.name || "").split(" ")[0]}</span></div> : <span style={{ fontSize: 11, color: T.textLight }}>—</span>}
+                  {t.createdBy ? <div style={{ display: "flex", alignItems: "center", gap: 6 }}><Av userId={t.createdBy} size={22} /><span style={{ fontSize: 11, color: T.textMid }}>{(getUser(t.createdBy, users)?.name || "System").split(" ")[0]}</span></div> : "—"}
+                </td>
+                <td style={{ padding: "12px 14px", borderBottom: `1px solid ${T.border}` }}>
+                  {t.assignedTo ? <div style={{ display: "flex", alignItems: "center", gap: 6 }}><Av userId={t.assignedTo} size={22} /><span style={{ fontSize: 11, color: T.textMid }}>{(getUser(t.assignedTo, users)?.name || "Unassigned").split(" ")[0]}</span></div> : <span style={{ fontSize: 11, color: T.textLight }}>—</span>}
                 </td>
                 <td style={{ padding: "12px 14px", borderBottom: `1px solid ${T.border}`, whiteSpace: "nowrap" }}>
                   <span style={{ fontSize: 11, fontWeight: 700, color: ov ? T.danger : days && days <= 2 ? T.warning : T.textMid, fontFamily: T.fontMono }}>{t.dueDate ? new Date(t.dueDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "—"}</span>
                   {ov && <div style={{ fontSize: 9, color: T.danger, fontWeight: 700 }}>OVERDUE</div>}
                 </td>
-                <td style={{ padding: "12px 14px", borderBottom: `1px solid ${T.border}`, fontSize: 11, color: T.textMid, fontFamily: T.fontMono, whiteSpace: "nowrap" }}>{t.actualHours}h/{t.estimatedHours}h</td>
+                <td style={{ padding: "12px 14px", borderBottom: `1px solid ${T.border}`, fontSize: 11, color: T.textMid, fontFamily: T.fontMono, whiteSpace: "nowrap" }}>{Number(t.actualHours).toFixed(2)}h/{t.estimatedHours}h</td>
                 <td style={{ padding: "12px 14px", borderBottom: `1px solid ${T.border}` }}>{t.revisionCount > 0 && <span style={{ fontSize: 10, color: T.warning, fontWeight: 700, background: T.warningBg, padding: "2px 6px", borderRadius: 10 }}>🔄×{t.revisionCount}</span>}</td>
               </tr>
             );
@@ -875,7 +865,7 @@ function KanbanView({ tasks, onTaskClick, stages, depts }) {
     if (taskId) {
       const task = tasks.find(t => t.id === taskId);
       if (task && task.stage !== stageId) {
-        updateTask(taskId, { stage: stageId });
+        setSelectedTask(taskId);
       }
     }
   };
@@ -1002,6 +992,70 @@ function CalendarView({ tasks }) {
 // ═══════════════════════════════════════════════════════════════════════
 // SIDEBAR
 // ═══════════════════════════════════════════════════════════════════════
+
+function GlobalTimer() {
+  const { tasks, updateTask } = useApp();
+  const activeTask = tasks.find(t => t.timerStart);
+  const [elapsed, setElapsed] = useState("");
+  const [showPopup, setShowPopup] = useState(false);
+
+  useEffect(() => {
+    if (!activeTask) return;
+    const interval = setInterval(() => {
+      const diff = new Date() - new Date(activeTask.timerStart);
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setElapsed(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [activeTask]);
+
+  if (!activeTask) return null;
+
+  const stopTimer = () => {
+    const h = parseFloat(((new Date() - new Date(activeTask.timerStart)) / 3600000).toFixed(2));
+    const newEntry = { start: activeTask.timerStart, end: new Date().toISOString(), duration: h, userId: currentUser.id };
+    updateTask(activeTask.id, { actualHours: activeTask.actualHours + h, timerStart: null, timeLog: [...(activeTask.timeLog || []), newEntry] });
+    setShowPopup(false);
+  };
+
+  return (
+    <div style={{ position: "fixed", bottom: 20, left: 236, zIndex: 5000 }}>
+      <button 
+        onClick={() => setShowPopup(!showPopup)}
+        style={{ background: T.blue, color: "#fff", padding: "10px 18px", borderRadius: 30, border: "none", boxShadow: T.shadowLg, cursor: "pointer", display: "flex", alignItems: "center", gap: 10, animation: "pulse 2s infinite" }}>
+        <span style={{ fontSize: 18 }}>⏱</span>
+        <div style={{ textAlign: "left" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, opacity: .8, textTransform: "uppercase" }}>Tracking: {activeTask.title.substring(0,20)}...</div>
+          <div style={{ fontSize: 15, fontWeight: 900, fontFamily: T.fontMono }}>{elapsed}</div>
+        </div>
+      </button>
+
+      {showPopup && (
+        <div style={{ position: "absolute", bottom: 65, left: 0, width: 280, background: T.surface, borderRadius: T.radiusLg, boxShadow: T.shadowLg, padding: 16, border: `1px solid ${T.border}`, animation: "mIn .2s ease" }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: T.textLight, textTransform: "uppercase", marginBottom: 8 }}>Active Timer</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 4 }}>{activeTask.title}</div>
+          <div style={{ fontSize: 12, color: T.textMid, marginBottom: 16 }}>Started at {new Date(activeTask.timerStart).toLocaleTimeString()}</div>
+          
+          <div style={{ display: "flex", gap: 8 }}>
+            <Btn onClick={stopTimer} sx={{ flex: 1 }}>Stop & Log Time</Btn>
+            <Btn variant="secondary" onClick={() => setShowPopup(false)}>Close</Btn>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes pulse {
+          0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
+          70% { box-shadow: 0 0 0 15px rgba(37, 99, 235, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 function Sidebar({ nav, setNav, currentUser, onLogout }) {
   const { tasks } = useApp();
   const badge = (fn) => tasks.filter(fn).length;
@@ -1021,6 +1075,7 @@ function Sidebar({ nav, setNav, currentUser, onLogout }) {
     <div style={{ width: 216, background: T.sidebar, display: "flex", flexDirection: "column", height: "100vh", position: "fixed", left: 0, top: 0, zIndex: 200, flexShrink: 0 }}>
       <div style={{ padding: "20px 16px 14px", borderBottom: `1px solid ${T.sidebarBorder}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {tasks.some(t => t.timerStart) && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 8px #4ade80" }} />}
           <div style={{ width: 34, height: 34, background: T.blue, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>⚡</div>
           <div><div style={{ fontSize: 14, fontWeight: 900, color: "#fff", letterSpacing: "-0.4px" }}>WorkflowOS</div><div style={{ fontSize: 10, color: "rgba(255,255,255,.35)", fontWeight: 600 }}>Agency Edition</div></div>
         </div>
@@ -1103,13 +1158,13 @@ function Dashboard({ currentUser, setNav, openTask }) {
   };
 
   const statCards = role === ROLES.SA
-    ? [{ label: "Active Tasks", value: stats.active, sub: `${tasks.length} total`, icon: "📋", color: T.blue }, { label: "Overdue", value: stats.overdue, icon: "⏰", color: T.danger, danger: true, sub: "Need attention" }, { label: "Unbilled Completed", value: stats.unbilled, icon: "💰", color: T.warning, danger: true, sub: "Revenue at risk" }, { label: "Billable Hours", value: `${stats.billHours}h`, icon: "⏱", color: T.success, sub: "Month to date" }]
+    ? [{ label: "Active Tasks", value: stats.active, sub: `${tasks.length} total`, icon: "📋", color: T.blue }, { label: "Overdue", value: stats.overdue, icon: "⏰", color: T.danger, danger: true, sub: "Need attention" }, { label: "Unbilled Completed", value: stats.unbilled, icon: "💰", color: T.warning, danger: true, sub: "Revenue at risk" }, { label: "Billable Hours", value: `${Number(stats.billHours).toFixed(2)}h`, icon: "⏱", color: T.success, sub: "Month to date" }]
     : role === ROLES.PM
       ? [{ label: "Active Tasks", value: stats.active, sub: `${myTasks.length} total`, icon: "📋", color: T.blue }, { label: "Awaiting Client", value: stats.awaitClient, icon: "👤", color: T.warning, danger: true, sub: "Need client decision" }, { label: "Overdue", value: stats.overdue, icon: "⏰", color: T.danger, danger: true, sub: "Past due date" }, { label: "Completed", value: stats.completed, icon: "✅", color: T.success, sub: "All time" }]
       : role === ROLES.DM
         ? [{ label: "Dept Tasks", value: myTasks.length, icon: "🏢", color: T.blue, sub: "Total" }, { label: "Under Review", value: stats.unreviewed, icon: "🔍", color: T.warning, danger: true, sub: "Awaiting review" }, { label: "Unassigned", value: stats.unassigned, icon: "👤", color: T.danger, danger: true, sub: "Need assignment" }, { label: "Completed", value: stats.completed, icon: "✅", color: T.success, sub: "All time" }]
         : role === ROLES.TM
-          ? [{ label: "My Tasks", value: myTasks.length, sub: `${stats.active} active`, icon: "📋", color: T.blue }, { label: "Overdue", value: stats.overdue, icon: "⏰", color: T.danger, danger: true, sub: "Attention needed" }, { label: "Completed", value: stats.completed, icon: "✅", color: T.success, sub: "All time" }, { label: "Hours Logged", value: `${myTasks.reduce((a, t) => a + t.actualHours, 0)}h`, icon: "⏱", color: T.warning, sub: "Total" }]
+          ? [{ label: "My Tasks", value: myTasks.length, sub: `${stats.active} active`, icon: "📋", color: T.blue }, { label: "Overdue", value: stats.overdue, icon: "⏰", color: T.danger, danger: true, sub: "Attention needed" }, { label: "Completed", value: stats.completed, icon: "✅", color: T.success, sub: "All time" }, { label: "Hours Logged", value: `${Number(myTasks.reduce((a, t) => a + t.actualHours, 0)).toFixed(2)}h`, icon: "⏱", color: T.warning, sub: "Total" }]
           : [{ label: "Awaiting Approval", value: stats.awaitClient, icon: "📋", color: T.blue, sub: "Your deliverables" }, { label: "Completed", value: stats.completed, icon: "✅", color: T.success, sub: "Delivered" }];
 
   const priorityTasks = (role === ROLES.DM ? myTasks.filter(t => ["submitted", "created"].includes(t.stage)) : role === ROLES.PM ? myTasks.filter(t => ["dept_approved", "client_review"].includes(t.stage)) : role === ROLES.TM ? myTasks.filter(t => t.stage !== "completed") : myTasks.filter(t => isOverdue(t) || ["submitted", "client_review"].includes(t.stage))).slice(0, 6);
@@ -1188,7 +1243,7 @@ function BulkUploadModal({ onClose }) {
   const updateRow = (i, k, v) => setRows(p => p.map((r, idx) => i === idx ? { ...r, [k]: v } : r));
   const removeRow = (i) => setRows(p => p.filter((_, idx) => i !== idx));
 
-  const save = () => {
+  const save = async () => {
     let toAdd = [];
     if (csvMode) {
       const lines = csvText.split("\n").map(l => l.trim()).filter(Boolean);
@@ -1380,8 +1435,15 @@ function ClientsPage({ openTask, openCreate }) {
           return (
             <Card key={cl.id} hover onClick={() => setSel(cl.id)} sx={{ padding: 20 }}>
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
-                <div><div style={{ fontSize: 16, fontWeight: 800, color: T.text, marginBottom: 3 }}>{cl.name}</div><div style={{ fontSize: 12, color: T.textMid }}>{cl.industry} · {cl.email}</div>{cl.gst && <div style={{ fontSize: 11, color: T.textLight, fontFamily: T.fontMono, marginTop: 2 }}>GST: {cl.gst}</div>}</div>
-                <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 20, background: T.blueLight, color: T.blue, flexShrink: 0 }}>{BILLING_CFG[cl.billing]?.label}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: T.text, marginBottom: 3 }}>{cl.name}</div>
+                  <div style={{ fontSize: 12, color: T.textMid }}>{cl.industry} {cl.mobile ? `· ${cl.mobile}` : ""} {cl.email ? `· ${cl.email}` : ""}</div>
+                  {cl.gst && <div style={{ fontSize: 11, color: T.textLight, fontFamily: T.fontMono, marginTop: 2 }}>GST: {cl.gst}</div>}
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <button onClick={(e) => { e.stopPropagation(); if (window.confirm("Delete client?")) deleteDoc(doc(db, "clients", cl.id)); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14 }}>🗑️</button>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 20, background: T.blueLight, color: T.blue, flexShrink: 0 }}>{BILLING_CFG[cl.billing]?.label}</span>
+                </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginBottom: 14 }}>
                 {[["Tasks", ct.length, T.textMid], ["Done", ct.filter(t => t.stage === "completed").length, T.success], ["Overdue", ov, ov > 0 ? T.danger : T.textMid], ["Unbilled", ub, ub > 0 ? T.warning : T.textMid]].map(([l, v, c]) => (
@@ -1399,7 +1461,10 @@ function ClientsPage({ openTask, openCreate }) {
       {showAdd && (
         <Modal title="Add New Client" onClose={() => setShowAdd(false)}>
           <Inp label="Client Name" value={nf.name} onChange={v => setNF(p => ({ ...p, name: v }))} required />
-          <Inp label="Email" value={nf.email} onChange={v => setNF(p => ({ ...p, email: v }))} type="email" required />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <Inp label="Mobile Number" value={nf.mobile} onChange={v => setNF(p => ({ ...p, mobile: v }))} required />
+            <Inp label="Email (Optional)" value={nf.email} onChange={v => setNF(p => ({ ...p, email: v }))} type="email" />
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <Sel label="Billing Type" value={nf.billing} onChange={v => setNF(p => ({ ...p, billing: v }))} required options={Object.entries(BILLING_CFG).map(([k, v]) => ({ value: k, label: v.label }))} />
             <Inp label="Industry" value={nf.industry} onChange={v => setNF(p => ({ ...p, industry: v }))} />
@@ -1409,7 +1474,7 @@ function ClientsPage({ openTask, openCreate }) {
           <Inp label="GST Number" value={nf.gst} onChange={v => setNF(p => ({ ...p, gst: v }))} placeholder="27AABCT1234A1Z5" />
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <Btn variant="secondary" onClick={() => setShowAdd(false)}>Cancel</Btn>
-            <Btn onClick={() => { if (nf.name) { await addDoc(collection(db, "clients"), { ...nf, retainer: parseFloat(nf.retainer) || 0, portalUser: null }); setShowAdd(false); } }} disabled={!nf.name}>Add Client</Btn>
+            <Btn onClick={async () => { if (nf.name) { await addDoc(collection(db, "clients"), { ...nf, retainer: parseFloat(nf.retainer) || 0, createdAt: new Date().toISOString() }); setNF({ name: "", email: "", mobile: "", billing: "retainer", retainer: 0, industry: "", gst: "" }); setShowAdd(false); } }} disabled={!nf.name}>Add Client</Btn>
           </div>
         </Modal>
       )}
@@ -1427,7 +1492,7 @@ function BillingPage() {
   const D = depts || DEPTS_DEFAULT;
   const unbilled = tasks.filter(t => t.stage === "completed" && t.isBillable && !t.isInvoiced);
   
-  const generateInvoice = (clientId) => {
+  const generateInvoice = async (clientId) => {
     const clientUnbilled = unbilled.filter(t => t.clientId === clientId);
     if (!clientUnbilled.length) return;
     const amount = clientUnbilled.reduce((a, t) => a + (t.actualHours * 1000), 0); // Mock rate 1000/hr
@@ -1436,7 +1501,7 @@ function BillingPage() {
     clientUnbilled.forEach(async t => await updateDoc(doc(db, "tasks", t.id), { isInvoiced: true, invoiceId: newInv.id }));
   };
 
-  const markPaid = (id) => {
+  const markPaid = async (id) => {
     await updateDoc(doc(db, "invoices", id), { status: "paid", paidDate: dF(0) });
   };
 
@@ -1444,7 +1509,7 @@ function BillingPage() {
   const outstanding = invoices.filter(i => ["sent", "overdue"].includes(i.status)).reduce((a, i) => a + i.amount, 0);
   const billH = tasks.filter(t => t.isBillable).reduce((a, t) => a + t.actualHours, 0);
   const nonBillH = tasks.filter(t => !t.isBillable).reduce((a, t) => a + t.actualHours, 0);
-  const TABS = [["overview", "Overview"], ["unbilled", `Unbilled (${unbilled.length})`], ["invoices", `Invoices (${invoices.length})`], ["hours", "Hours Report"]];
+  const TABS = [["overview", "Overview"], ["execution", "Checklist & Subtasks"], ["unbilled", `Unbilled (${unbilled.length})`], ["invoices", `Invoices (${invoices.length})`], ["hours", "Hours Report"]];
 
 
   return (
@@ -1452,7 +1517,7 @@ function BillingPage() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
         <StatCard label="Revenue Collected" value={INR(totalRev)} icon="💰" color={T.success} sub="Paid invoices" />
         <StatCard label="Outstanding" value={INR(outstanding)} icon="📤" color={T.warning} sub="Awaiting payment" />
-        <StatCard label="Billable Hours" value={`${billH}h`} icon="⏱" color={T.blue} sub="Total logged" />
+        <StatCard label="Billable Hours" value={`${Number(billH).toFixed(2)}h`} icon="⏱" color={T.blue} sub="Total logged" />
         <StatCard label="Revenue at Risk" value={unbilled.length} icon="⚠" color={T.danger} danger sub="Unbilled completed" />
       </div>
       <div style={{ display: "flex", borderBottom: `1px solid ${T.border}`, marginBottom: 20 }}>
@@ -1470,7 +1535,7 @@ function BillingPage() {
                 <div key={cl.id} style={{ padding: "10px 0", borderBottom: `1px solid ${T.border}` }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{cl.name}</span>
-                    <span style={{ fontSize: 12, color: T.blue, fontFamily: T.fontMono, fontWeight: 800 }}>{bh}h billed</span>
+                    <span style={{ fontSize: 12, color: T.blue, fontFamily: T.fontMono, fontWeight: 800 }}>{Number(bh).toFixed(2)}h billed</span>
                   </div>
                   {cl.retainer > 0 && <div style={{ fontSize: 11, color: T.textMid }}>Retainer: {INR(cl.retainer)}/mo</div>}
                   {ub > 0 && <div style={{ fontSize: 11, color: T.warning, fontWeight: 700 }}>⚠ {ub} task{ub > 1 ? "s" : ""} unbilled</div>}
@@ -1487,7 +1552,7 @@ function BillingPage() {
                 <div key={d.id} style={{ marginBottom: 12 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
                     <span style={{ color: T.text, fontWeight: 700 }}>{d.icon} {d.name}</span>
-                    <span style={{ color: T.blue, fontFamily: T.fontMono, fontWeight: 800 }}>{h}h ({Math.round(pct)}%)</span>
+                    <span style={{ color: T.blue, fontFamily: T.fontMono, fontWeight: 800 }}>{Number(h).toFixed(2)}h ({Math.round(pct)}%)</span>
                   </div>
                   <Progress value={pct} color={d.color} />
                 </div>
@@ -1548,7 +1613,7 @@ function BillingPage() {
             <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 14 }}>Hours Summary</div>
             {[["Billable", billH, T.blue], ["Non-Billable", nonBillH, T.textMid]].map(([l, v, c]) => (
               <div key={l} style={{ marginBottom: 14 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}><span style={{ fontSize: 12, color: T.textMid }}>{l}</span><span style={{ fontSize: 16, fontWeight: 900, color: c, fontFamily: T.fontMono }}>{v}h</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}><span style={{ fontSize: 12, color: T.textMid }}>{l}</span><span style={{ fontSize: 16, fontWeight: 900, color: c, fontFamily: T.fontMono }}>{Number(v).toFixed(2)}h</span></div>
                 <Progress value={(v / (billH + nonBillH || 1)) * 100} color={c} />
               </div>
             ))}
@@ -1567,8 +1632,8 @@ function BillingPage() {
                 <div key={u.id} style={{ marginBottom: 12 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
                     <Av userId={u.id} size={22} /><span style={{ fontSize: 12, fontWeight: 700, color: T.text, flex: 1 }}>{u.name}</span>
-                    <span style={{ fontSize: 11, color: T.blue, fontFamily: T.fontMono, fontWeight: 800 }}>{bh}h</span>
-                    <span style={{ fontSize: 11, color: T.textLight, fontFamily: T.fontMono }}>{h}h total</span>
+                    <span style={{ fontSize: 11, color: T.blue, fontFamily: T.fontMono, fontWeight: 800 }}>{Number(bh).toFixed(2)}h</span>
+                    <span style={{ fontSize: 11, color: T.textLight, fontFamily: T.fontMono }}>{Number(h).toFixed(2)}h total</span>
                   </div>
                   <Progress value={h > 0 ? (bh / h) * 100 : 0} color={u.color} h={4} />
                 </div>
@@ -1630,7 +1695,7 @@ function ReportsPage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
             <StatCard label="Completion Rate" value={`${total > 0 ? Math.round((done / total) * 100) : 0}%`} icon="✅" color={T.success} sub={`${done}/${total} tasks`} />
             <StatCard label="Avg Revisions" value={(total > 0 ? f.reduce((a, t) => a + t.revisionCount, 0) / total : 0).toFixed(1)} icon="🔄" color={T.warning} sub="Per task" />
-            <StatCard label="Billable Hours" value={`${f.filter(t => t.isBillable).reduce((a, t) => a + t.actualHours, 0)}h`} icon="⏱" color={T.blue} sub="Total logged" />
+            <StatCard label="Billable Hours" value={`${Number(f.filter(t => t.isBillable).reduce((a, t) => a + t.actualHours, 0)).toFixed(2)}h`} icon="⏱" color={T.blue} sub="Total logged" />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             <Card sx={{ padding: 18 }}>
@@ -1645,7 +1710,7 @@ function ReportsPage() {
                     <td style={{ padding: "9px 8px", borderBottom: `1px solid ${T.border}`, fontSize: 12, fontFamily: T.fontMono, fontWeight: 800 }}>{dt.length}</td>
                     <td style={{ padding: "9px 8px", borderBottom: `1px solid ${T.border}`, fontSize: 12, color: T.success, fontWeight: 700 }}>{dt.filter(t => t.stage === "completed").length}</td>
                     <td style={{ padding: "9px 8px", borderBottom: `1px solid ${T.border}`, fontSize: 12, color: T.warning, fontWeight: 700 }}>{dt.reduce((a, t) => a + t.revisionCount, 0)}</td>
-                    <td style={{ padding: "9px 8px", borderBottom: `1px solid ${T.border}`, fontSize: 12, color: T.blue, fontFamily: T.fontMono, fontWeight: 700 }}>{dt.reduce((a, t) => a + t.actualHours, 0)}h</td>
+                    <td style={{ padding: "9px 8px", borderBottom: `1px solid ${T.border}`, fontSize: 12, color: T.blue, fontFamily: T.fontMono, fontWeight: 700 }}>{dt.reduce((a, t) => a + t.actualHours, 0).toFixed(2)}h</td>
                   </tr>;
                 })}</tbody>
               </table>
@@ -1675,9 +1740,10 @@ function ReportsPage() {
                 return (
                   <tr key={i} style={{ background: i % 2 === 0 ? T.surface : T.surfaceElev }}>
                     <td style={{ padding: "12px 14px", borderBottom: `1px solid ${T.border}`, fontSize: 13, fontWeight: 700, color: T.text }}>{r.label}</td>
-                    <td style={{ padding: "12px 14px", borderBottom: `1px solid ${T.border}`, fontSize: 14, fontWeight: 800, color: T.blue, fontFamily: T.fontMono }}>{r.val} {cMetric === "time" ? "hrs" : ""}</td>
+                    <td style={{ padding: "12px 14px", borderBottom: `1px solid ${T.border}`, fontSize: 14, fontWeight: 800, color: T.blue, fontFamily: T.fontMono }}>{Number(r.val).toFixed(2)} {cMetric === "time" ? "hrs" : ""}</td>
                     <td style={{ padding: "12px 14px", borderBottom: `1px solid ${T.border}` }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {tasks.some(t => t.timerStart) && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 8px #4ade80" }} />}
                          <span style={{ fontSize: 12, fontWeight: 700, width: 34 }}>{Math.round(pct)}%</span>
                          <Progress value={pct} color={Object.values(PRIORITY_CFG)[i%3].color} />
                       </div>
@@ -1772,12 +1838,12 @@ function TeamPage() {
   const openInvite = () => { setForm({ name: "", email: "", role: "", dept: [] }); setEditingUser(null); setShowInvite(true); };
   const openEdit = (u) => { setForm({ name: u.name, email: u.email, role: u.role, dept: Array.isArray(u.dept) ? u.dept : (u.dept ? [u.dept] : []) }); setEditingUser(u); setShowInvite(true); };
 
-  const save = () => {
+  const save = async () => {
     if(!form.name || !form.email || !form.role) return;
     if (editingUser) {
-      setUsers(p => p.map(u => u.id === editingUser.id ? { ...u, ...form, av: form.name.substring(0,2).toUpperCase() } : u));
+      await updateDoc(doc(db, "users", editingUser.id), { ...form, av: form.name.substring(0,2).toUpperCase() });
     } else {
-      setUsers(p => [...p, { id: uuid(), ...form, av: form.name.substring(0,2).toUpperCase(), color: "#4F46E5", password: "temp" }]);
+      await addDoc(collection(db, "users"), { id: uuid(), ...form, av: form.name.substring(0,2).toUpperCase(), color: "#4F46E5", password: "temp123", createdAt: new Date().toISOString() });
     }
     setShowInvite(false);
   };
@@ -1800,10 +1866,10 @@ function TeamPage() {
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
                 <div style={{ width: 44, height: 44, borderRadius: "50%", background: u.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: "#fff", border: "3px solid #fff", boxShadow: "0 2px 8px rgba(0,0,0,.15)" }}>{u.av}</div>
                 <div style={{ flex: 1 }}><div style={{ fontSize: 14, fontWeight: 800, color: T.text }}>{u.name}</div><div style={{ fontSize: 11, color: T.textMid }}>{ROLE_LABELS[u.role]}</div>{dept && <div style={{ fontSize: 10, color: dept.color, fontWeight: 700 }}>{dept.icon} {dept.name}</div>}</div>
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}><span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, background: T.successBg, color: T.success }}>Active</span><Btn size="sm" variant="ghost" onClick={() => openEdit(u)}>Edit</Btn></div>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}><span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, background: T.successBg, color: T.success }}>Active</span><Btn size="sm" variant="ghost" onClick={() => openEdit(u)}>Edit</Btn><Btn size="sm" variant="ghost" sx={{ color: T.danger }} onClick={async () => { const pw = prompt("New password for " + u.name); if(pw) await updateDoc(doc(db, "users", u.id), { password: pw }); }}>Reset Pwd</Btn><Btn size="sm" variant="danger" onClick={async () => { const pw = prompt("New password for " + u.name); if(pw) await updateDoc(doc(db, "users", u.id), { password: pw }); }}>Reset Pwd</Btn></div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6 }}>
-                {[["Active", active.length, T.blue], ["Done", done.length, T.success], ["Overdue", ov.length, ov.length > 0 ? T.danger : T.textMid], ["Hours", `${h}h`, T.warning]].map(([l, v, c]) => (
+                {[["Active", active.length, T.blue], ["Done", done.length, T.success], ["Overdue", ov.length, ov.length > 0 ? T.danger : T.textMid], ["Hours", `${Number(h).toFixed(2)}h`, T.warning]].map(([l, v, c]) => (
                   <div key={l} style={{ textAlign: "center", background: T.bg, borderRadius: T.radiusSm, padding: "8px 4px" }}>
                     <div style={{ fontSize: 15, fontWeight: 900, color: c, fontFamily: T.fontMono }}>{v}</div>
                     <div style={{ fontSize: 9, color: T.textLight, textTransform: "uppercase", fontWeight: 700 }}>{l}</div>
@@ -1841,370 +1907,294 @@ function TeamPage() {
 // SETTINGS PAGE — FIX #4 (dept CRUD) + FIX #5 (stage edit)
 // ═══════════════════════════════════════════════════════════════════════
 function SettingsPage() {
-  const { stages, setStages, automations, setAutomations, depts, setDepts } = useApp();
+  const { tasks, stages, depts, users, currentUser, updateTask, permissions } = useApp();
   const [tab, setTab] = useState("workflow");
 
   // Stage form state
   const [showAddStage, setShowAddStage] = useState(false);
-  const [editingStage, setEditingStage] = useState(null); // FIX #5
+  const [editingStage, setEditingStage] = useState(null);
   const [stageForm, setStageForm] = useState({ label: "", color: "#6366F1", bg: "#EEF2FF", approverRole: "" });
 
-  // Dept form state — FIX #4
+  // Dept form state
   const [showDeptModal, setShowDeptModal] = useState(false);
   const [editingDept, setEditingDept] = useState(null);
   const [deptForm, setDeptForm] = useState({ name: "", icon: "🏢", color: "#6366F1" });
 
-  // Automation form state
-  const [showAddAuto, setShowAddAuto] = useState(false);
-  const [autoForm, setAutoForm] = useState({ name: "", trigger: "stage_change", triggerValue: "", action: "notify_email", actionValue: "", active: true });
   const [notifState, setNotifState] = useState({"Task assigned to me": true, "Stage updates": true, "Revision requested": true, "Client approval": true, "Overdue alerts": false, "Weekly summary": false});
 
-  const TABS = [["workflow", "⚙ Workflow Builder"], ["automation", "⚡ Automations"], ["departments", "🏢 Departments"], ["roles", "🔒 Roles & Privileges"], ["notifications", "🔔 Notifications"], ["general", "🏢 General"]];
+  const TABS = [["workflow", "⚙ Workflow Builder"], ["departments", "🏢 Departments"], ["roles", "🔒 Roles & Privileges"], ["notifications", "🔔 Notifications"], ["general", "🏢 General"]];
 
-  // ── Stage CRUD ───────────────────────────────────────
-  const openAddStage = () => { setEditingStage(null); setStageForm({ label: "", color: "#6366F1", bg: "#EEF2FF", approverRole: "" }); setShowAddStage(true); };
-  const openEditStage = (s) => { setEditingStage(s.id); setStageForm({ label: s.label, color: s.color, bg: s.bg, approverRole: s.approverRole || "" }); setShowAddStage(true); };
-  const saveStage = () => {
+  const saveStage = async () => {
     if (!stageForm.label) return;
     if (editingStage) {
-      setStages(p => p.map(s => s.id === editingStage ? { ...s, label: stageForm.label, color: stageForm.color, bg: stageForm.bg, approverRole: stageForm.approverRole } : s));
+      const updated = stages.map(s => s.id === editingStage ? { ...s, label: stageForm.label, color: stageForm.color, bg: stageForm.bg, approverRole: stageForm.approverRole } : s);
+      await updateDoc(doc(db, "config", "workflow"), { stages: updated });
     } else {
       const ns = { id: uuid(), label: stageForm.label, color: stageForm.color, bg: stageForm.bg, approverRole: stageForm.approverRole, step: stages.length, terminal: false };
-      setStages(p => { const arr = [...p]; arr.splice(arr.length - 1, 0, ns); return arr.map((s, i) => ({ ...s, step: i + 1 })); });
+      const newStages = [...stages]; 
+      newStages.splice(newStages.length - 1, 0, ns); 
+      const final = newStages.map((s, i) => ({ ...s, step: i + 1 }));
+      await updateDoc(doc(db, "config", "workflow"), { stages: final });
     }
     setShowAddStage(false);
   };
-  const deleteStage = (id) => { if (["created", "completed"].includes(id)) return; setStages(p => p.filter(s => s.id !== id).map((s, i) => ({ ...s, step: i + 1 }))); };
 
-  // ── Dept CRUD — FIX #4 ──────────────────────────────
-  const openAddDept = () => { setEditingDept(null); setDeptForm({ name: "", icon: "🏢", color: "#6366F1" }); setShowDeptModal(true); };
-  const openEditDept = (d) => { setEditingDept(d.id); setDeptForm({ name: d.name, icon: d.icon, color: d.color }); setShowDeptModal(true); };
-  const saveDept = () => {
+  const deleteStage = async (id) => { 
+    if (["created", "completed"].includes(id)) return; 
+    const final = stages.filter(s => s.id !== id).map((s, i) => ({ ...s, step: i + 1 }));
+    await updateDoc(doc(db, "config", "workflow"), { stages: final });
+  };
+
+  const saveDept = async () => {
     if (!deptForm.name) return;
     if (editingDept) {
-      setDepts(p => p.map(d => d.id === editingDept ? { ...d, ...deptForm } : d));
+      const final = depts.map(d => d.id === editingDept ? { ...d, ...deptForm } : d);
+      await updateDoc(doc(db, "config", "departments"), { list: final });
     } else {
-      setDepts(p => [...p, { id: uuid(), ...deptForm }]);
+      const final = [...depts, { id: uuid(), ...deptForm }];
+      await updateDoc(doc(db, "config", "departments"), { list: final });
     }
     setShowDeptModal(false);
   };
-  const deleteDept = (id) => { if (["d1", "d2", "d3", "d4", "d5", "d6"].includes(id)) { alert("Cannot delete default departments. Custom ones can be deleted."); return; } setDepts(p => p.filter(d => d.id !== id)); };
 
-  const addAutomation = () => {
-    if (!autoForm.name || !autoForm.trigger || !autoForm.action) return;
-    setAutomations(p => [...p, { id: uuid(), ...autoForm }]);
-    setShowAddAuto(false); setAutoForm({ name: "", trigger: "stage_change", triggerValue: "", action: "notify_email", actionValue: "", active: true });
+  const deleteDept = async (id) => { 
+    const final = depts.filter(d => d.id !== id);
+    await updateDoc(doc(db, "config", "departments"), { list: final });
   };
-
-  const ICON_OPTS = ["🎨", "🎬", "🔍", "💻", "📱", "📣", "💼", "🎧", "📊", "🛠", "🏢", "⚡", "🌐", "📧", "🤝", "📝", "🚀", "💡"];
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${T.border}`, marginBottom: 24, overflowX: "auto" }}>
-        {TABS.map(([id, lbl]) => (
-          <button key={id} onClick={() => setTab(id)} style={{ padding: "9px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: tab === id ? 800 : 500, fontFamily: T.font, color: tab === id ? T.blue : T.textMid, borderBottom: tab === id ? `2px solid ${T.blue}` : "2px solid transparent", marginBottom: -1, whiteSpace: "nowrap" }}>{lbl}</button>
+      <div style={{ display: "flex", gap: 6, marginBottom: 24, padding: "0 4px", borderBottom: `1px solid ${T.border}`, overflowX: "auto" }}>
+        {TABS.map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)} style={{ padding: "12px 20px", background: "none", border: "none", borderBottom: `2px solid ${tab === id ? T.blue : "transparent"}`, color: tab === id ? T.blue : T.textMid, fontSize: 13, fontWeight: tab === id ? 800 : 600, cursor: "pointer", whiteSpace: "nowrap", fontFamily: T.font }}>{label}</button>
         ))}
       </div>
 
-      {/* ── WORKFLOW BUILDER ── */}
       {tab === "workflow" && (
         <div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: T.text }}>Workflow Stage Builder</div>
-              <div style={{ fontSize: 12, color: T.textMid, marginTop: 3 }}>Define task lifecycle stages. "Created" and "Completed" are system-locked (label editable).</div>
-            </div>
-            <Btn onClick={openAddStage}>+ Add Stage</Btn>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+            <div><div style={{ fontSize: 16, fontWeight: 800 }}>Workflow Builder</div><div style={{ fontSize: 12, color: T.textMid }}>Customize your agency's pipeline stages.</div></div>
+            <Btn onClick={() => { setEditingStage(null); setStageForm({ label: "", color: "#6366F1", bg: "#EEF2FF", approverRole: "" }); setShowAddStage(true); }}>+ Add Stage</Btn>
           </div>
-          <Card sx={{ padding: 20, marginBottom: 20 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: T.textLight, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 12 }}>Pipeline Preview</div>
-            <Pipeline currentStage={stages[2]?.id || "in_progress"} stages={stages} />
-          </Card>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {stages.map(s => (
-              <Card key={s.id} sx={{ padding: "14px 18px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 9, background: s.bg, border: `2px solid ${s.color}`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, color: s.color, fontSize: 14, flexShrink: 0 }}>{s.step}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ fontSize: 15, fontWeight: 800, color: T.text }}>{s.label}</span>
-                      {s.isStart && <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: T.blueLight, color: T.blue }}>Start</span>}
-                      {s.terminal && <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: T.successBg, color: T.success }}>Terminal</span>}
-{s.approverRole && <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: T.warningBg, color: T.warning }}>🔒 {ROLE_LABELS[s.approverRole]}</span>}
-                    </div>
-                    <div style={{ fontSize: 11, color: T.textLight, marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}>
-                      <div style={{ width: 12, height: 12, borderRadius: "50%", background: s.color, border: `2px solid ${s.bg}`, display: "inline-block" }} />
-                      <span style={{ fontFamily: T.fontMono }}>{s.color}</span>
-                    </div>
+          <Card sx={{ padding: 20 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {stages.map((s, i) => (
+                <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: 12, border: `1px solid ${T.border}`, borderRadius: T.radiusSm }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, width: 24, color: T.textLight }}>{i + 1}</div>
+                  <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10 }}>
+                    <Badge stage={s.id} stages={stages} />
+                    {s.approverRole && <span style={{ fontSize: 10, color: T.textLight }}>· Needs approval by {ROLE_LABELS[s.approverRole]}</span>}
                   </div>
-                  {/* FIX #5 — Edit button on ALL stages */}
                   <div style={{ display: "flex", gap: 6 }}>
-                    <Btn variant="outline" size="sm" onClick={() => openEditStage(s)}>Edit</Btn>
-                    {!s.isStart && !s.terminal && <Btn variant="danger" size="sm" onClick={() => deleteStage(s.id)}>Remove</Btn>}
-                    {(s.isStart || s.terminal) && <span style={{ fontSize: 11, color: T.textLight, padding: "5px 8px", alignSelf: "center" }}>Cannot remove</span>}
+                    <Btn size="sm" variant="ghost" onClick={() => { setEditingStage(s.id); setStageForm({ label: s.label, color: s.color, bg: s.bg, approverRole: s.approverRole || "" }); setShowAddStage(true); }}>Edit</Btn>
+                    {!["created", "completed"].includes(s.id) && <Btn size="sm" variant="ghost" sx={{ color: T.danger }} onClick={() => deleteStage(s.id)}>Remove</Btn>}
                   </div>
                 </div>
-              </Card>
-            ))}
-          </div>
-
+              ))}
+            </div>
+          </Card>
           {showAddStage && (
-            <Modal title={editingStage ? "Edit Stage" : "Add Workflow Stage"} onClose={() => setShowAddStage(false)}>
-              <Inp label="Stage Label" value={stageForm.label} onChange={v => setStageForm(p => ({ ...p, label: v }))} required placeholder="e.g. QA Review" />
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div style={{ marginBottom: 14 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: T.textMid, display: "block", marginBottom: 5 }}>Stage Color</label>
-                  <input type="color" value={stageForm.color} onChange={e => setStageForm(p => ({ ...p, color: e.target.value }))} style={{ width: "100%", height: 42, border: `1px solid ${T.border}`, borderRadius: T.radiusSm, cursor: "pointer", padding: 3 }} />
-                </div>
-                <div style={{ marginBottom: 14 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: T.textMid, display: "block", marginBottom: 5 }}>Background Color</label>
-                  <input type="color" value={stageForm.bg} onChange={e => setStageForm(p => ({ ...p, bg: e.target.value }))} style={{ width: "100%", height: 42, border: `1px solid ${T.border}`, borderRadius: T.radiusSm, cursor: "pointer", padding: 3 }} />
-                </div>
+            <Modal title={editingStage ? "Edit Stage" : "Add Stage"} onClose={() => setShowAddStage(false)}>
+              <Inp label="Stage Label" value={stageForm.label} onChange={v => setStageForm(p => ({ ...p, label: v }))} required />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+                <Sel label="Approver" value={stageForm.approverRole} onChange={v => setStageForm(p => ({ ...p, approverRole: v }))} options={[["", "No approval needed"], ...Object.entries(ROLE_LABELS)].map(([v, l]) => ({ value: v, label: l }))} />
+                <Inp label="Hex Color" value={stageForm.color} onChange={v => setStageForm(p => ({ ...p, color: v }))} />
               </div>
-              <Sel label="Requires Approval From (Optional)" value={stageForm.approverRole} onChange={v => setStageForm(p => ({ ...p, approverRole: v }))} options={Object.entries(ROLE_LABELS).map(([k,v])=>({value:k,label:v}))} />
-              <div style={{ padding: 12, background: T.bg, borderRadius: T.radiusSm, marginBottom: 16 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: T.textLight, marginBottom: 8 }}>Preview</div>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 12px", borderRadius: 20, background: stageForm.bg, color: stageForm.color, fontSize: 12, fontWeight: 700, border: `1px solid ${stageForm.color}40` }}>
-                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: stageForm.color }} />
-                  {stageForm.label || "Stage Name"}
-                </span>
-              </div>
-              {!editingStage && <div style={{ fontSize: 12, color: T.textMid, marginBottom: 16 }}>New stage will be inserted before "Completed".</div>}
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                <Btn variant="secondary" onClick={() => setShowAddStage(false)}>Cancel</Btn>
-                <Btn onClick={saveStage} disabled={!stageForm.label}>{editingStage ? "Save Changes" : "Add Stage"}</Btn>
-              </div>
+              <Btn onClick={saveStage} full>Save Stage</Btn>
             </Modal>
           )}
         </div>
       )}
 
-      {/* ── AUTOMATIONS ── */}
-      {tab === "automation" && (
-        <div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <div><div style={{ fontSize: 16, fontWeight: 800, color: T.text }}>Workflow Automations</div><div style={{ fontSize: 12, color: T.textMid, marginTop: 3 }}>IF [trigger] THEN [action] — runs automatically.</div></div>
-            <Btn onClick={() => setShowAddAuto(true)}>+ New Automation</Btn>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {automations.map(auto => (
-              <Card key={auto.id} sx={{ padding: "14px 18px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 9, background: auto.active ? T.blueLight : T.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>⚡</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: T.text, marginBottom: 6 }}>{auto.name}</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: T.bg, color: T.textMid, border: `1px solid ${T.border}`, fontWeight: 600 }}>IF {AUTOMATION_TRIGGERS.find(t => t.id === auto.trigger)?.label} {auto.triggerValue && `"${auto.triggerValue}"`}</span>
-                      <span style={{ fontSize: 13, color: T.blue }}>→</span>
-                      <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, background: T.blueLight, color: T.blue, border: `1px solid ${T.blueMid}`, fontWeight: 600 }}>THEN {AUTOMATION_ACTIONS.find(a => a.id === auto.action)?.label} {auto.actionValue && `"${auto.actionValue}"`}</span>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <Toggle checked={auto.active} onChange={v => setAutomations(p => p.map(a => a.id === auto.id ? { ...a, active: v } : a))} />
-                    <Btn variant="danger" size="sm" onClick={() => setAutomations(p => p.filter(a => a.id !== auto.id))}>Delete</Btn>
-                  </div>
-                </div>
-              </Card>
-            ))}
-            {automations.length === 0 && <div style={{ padding: 40, textAlign: "center", color: T.textLight, fontSize: 13 }}>No automations yet.</div>}
-          </div>
-          {showAddAuto && (
-            <Modal title="Create Automation" onClose={() => setShowAddAuto(false)} width={560}>
-              <Inp label="Automation Name" value={autoForm.name} onChange={v => setAutoForm(p => ({ ...p, name: v }))} required placeholder="e.g. Notify PM on dept approval" />
-              <div style={{ padding: 16, background: T.bg, borderRadius: T.radiusSm, marginBottom: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: T.textLight, textTransform: "uppercase", marginBottom: 10 }}>Trigger (IF)</div>
-                <Sel label="When…" value={autoForm.trigger} onChange={v => setAutoForm(p => ({ ...p, trigger: v }))} required options={AUTOMATION_TRIGGERS.map(t => ({ value: t.id, label: t.label }))} />
-                {autoForm.trigger === "stage_change" && <Sel label="Stage" value={autoForm.triggerValue} onChange={v => setAutoForm(p => ({ ...p, triggerValue: v }))} options={stages.map(s => ({ value: s.id, label: s.label }))} />}
-                {autoForm.trigger === "revision_count" && <Inp label="Exceeds count" value={autoForm.triggerValue} onChange={v => setAutoForm(p => ({ ...p, triggerValue: v }))} type="number" />}
-              </div>
-              <div style={{ padding: 16, background: T.blueLight, borderRadius: T.radiusSm, marginBottom: 14, border: `1px solid ${T.blueMid}` }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: T.blue, textTransform: "uppercase", marginBottom: 10 }}>Action (THEN)</div>
-                <Sel label="Do this…" value={autoForm.action} onChange={v => setAutoForm(p => ({ ...p, action: v }))} required options={AUTOMATION_ACTIONS.map(a => ({ value: a.id, label: a.label }))} />
-                {["notify_slack", "notify_email", "assign_to", "add_tag"].includes(autoForm.action) && <Inp label="Value" value={autoForm.actionValue} onChange={v => setAutoForm(p => ({ ...p, actionValue: v }))} placeholder={autoForm.action === "notify_slack" ? "#channel" : autoForm.action === "assign_to" ? "Team member" : "Value"} />}
-                {autoForm.action === "change_priority" && <Sel label="Priority" value={autoForm.actionValue} onChange={v => setAutoForm(p => ({ ...p, actionValue: v }))} options={Object.entries(PRIORITY_CFG).map(([k, v]) => ({ value: k, label: v.label }))} />}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-                <Toggle checked={autoForm.active} onChange={v => setAutoForm(p => ({ ...p, active: v }))} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Active immediately</span>
-              </div>
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                <Btn variant="secondary" onClick={() => setShowAddAuto(false)}>Cancel</Btn>
-                <Btn onClick={addAutomation} disabled={!autoForm.name || !autoForm.trigger || !autoForm.action}>Create</Btn>
-              </div>
-            </Modal>
-          )}
-        </div>
-      )}
-
-      {/* ── DEPARTMENTS — FIX #3 + FIX #4 ── */}
       {tab === "departments" && (
         <div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: T.text }}>Department Management</div>
-              <div style={{ fontSize: 12, color: T.textMid, marginTop: 3 }}>Add, edit, or remove departments. Includes Sales & Customer Support by default.</div>
-            </div>
-            <Btn onClick={openAddDept}>+ Add Department</Btn>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+            <div style={{ fontSize: 16, fontWeight: 800 }}>Departments</div>
+            <Btn onClick={() => { setEditingDept(null); setDeptForm({ name: "", icon: "🏢", color: "#6366F1" }); setShowDeptModal(true); }}>+ Add Dept</Btn>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12 }}>
-            {(depts || DEPTS_DEFAULT).map(d => (
-              <Card key={d.id} sx={{ padding: "14px 18px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: `${d.color}18`, border: `2px solid ${d.color}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>{d.icon}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>{d.name}</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
-                      <div style={{ width: 12, height: 12, borderRadius: "50%", background: d.color }} />
-                      <span style={{ fontSize: 11, color: T.textLight, fontFamily: T.fontMono }}>{d.color}</span>
-                      <span style={{ fontSize: 10, color: T.textLight, fontFamily: T.fontMono }}>· id: {d.id}</span>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <Btn variant="outline" size="sm" onClick={() => openEditDept(d)}>Edit</Btn>
-                    <Btn variant="danger" size="sm" onClick={() => deleteDept(d.id)}>Remove</Btn>
-                  </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {depts.map(d => (
+              <Card key={d.id} sx={{ padding: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ fontSize: 24 }}>{d.icon}</div>
+                  <div style={{ flex: 1 }}><div style={{ fontWeight: 800 }}>{d.name}</div><div style={{ fontSize: 10, color: d.color }}>{d.color}</div></div>
+                  <Btn size="sm" variant="ghost" onClick={() => { setEditingDept(d.id); setDeptForm({ name: d.name, icon: d.icon, color: d.color }); setShowDeptModal(true); }}>Edit</Btn>
+                  <Btn size="sm" variant="ghost" sx={{ color: T.danger }} onClick={() => deleteDept(d.id)}>Remove</Btn>
                 </div>
               </Card>
             ))}
           </div>
-
           {showDeptModal && (
-            <Modal title={editingDept ? "Edit Department" : "Add Department"} onClose={() => setShowDeptModal(false)}>
-              <Inp label="Department Name" value={deptForm.name} onChange={v => setDeptForm(p => ({ ...p, name: v }))} required placeholder="e.g. Quality Assurance" />
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: T.textMid, display: "block", marginBottom: 8 }}>Icon</label>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {ICON_OPTS.map(ic => (
-                    <button key={ic} onClick={() => setDeptForm(p => ({ ...p, icon: ic }))}
-                      style={{ width: 38, height: 38, fontSize: 20, borderRadius: T.radiusSm, border: `2px solid ${deptForm.icon === ic ? T.blue : T.border}`, background: deptForm.icon === ic ? T.blueLight : T.surface, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      {ic}
-                    </button>
-                  ))}
-                  <input value={deptForm.icon} onChange={e => setDeptForm(p => ({ ...p, icon: e.target.value }))} placeholder="Custom emoji" maxLength={2}
-                    style={{ width: 80, padding: "6px 10px", border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: 18, fontFamily: T.font, outline: "none", textAlign: "center" }} />
-                </div>
-              </div>
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: T.textMid, display: "block", marginBottom: 5 }}>Color</label>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <input type="color" value={deptForm.color} onChange={e => setDeptForm(p => ({ ...p, color: e.target.value }))} style={{ width: 50, height: 42, border: `1px solid ${T.border}`, borderRadius: T.radiusSm, cursor: "pointer", padding: 3 }} />
-                  <input value={deptForm.color} onChange={e => setDeptForm(p => ({ ...p, color: e.target.value }))} style={{ flex: 1, padding: "9px 12px", border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: 13, fontFamily: T.fontMono, outline: "none" }} />
-                </div>
-              </div>
-              <div style={{ padding: 14, background: T.bg, borderRadius: T.radiusSm, marginBottom: 16 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: T.textLight, marginBottom: 8 }}>Preview</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 10, background: `${deptForm.color}18`, border: `2px solid ${deptForm.color}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{deptForm.icon}</div>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: T.text }}>{deptForm.name || "Department Name"}</div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: deptForm.color }}>{deptForm.icon} {deptForm.name || "Name"}</div>
-                  </div>
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                <Btn variant="secondary" onClick={() => setShowDeptModal(false)}>Cancel</Btn>
-                <Btn onClick={saveDept} disabled={!deptForm.name}>{editingDept ? "Save Changes" : "Add Department"}</Btn>
-              </div>
+            <Modal title={editingDept ? "Edit Dept" : "Add Dept"} onClose={() => setShowDeptModal(false)}>
+              <Inp label="Name" value={deptForm.name} onChange={v => setDeptForm(p => ({ ...p, name: v }))} required />
+              <Inp label="Icon" value={deptForm.icon} onChange={v => setDeptForm(p => ({ ...p, icon: v }))} required />
+              <Inp label="Color" value={deptForm.color} onChange={v => setDeptForm(p => ({ ...p, color: v }))} required />
+              <Btn onClick={saveDept} full>Save Department</Btn>
             </Modal>
           )}
         </div>
       )}
 
-      
       {tab === "roles" && (
         <Card sx={{ padding: 24 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: T.text, marginBottom: 4 }}>Roles & Privileges</div>
-          <div style={{ fontSize: 12, color: T.textMid, marginBottom: 20 }}>Customize permissions for each user role in the system.</div>
-          {Object.entries(ROLE_LABELS).map(([k,v]) => (
-            <div key={k} style={{ marginBottom: 16, padding: 14, border: `1px solid ${T.border}`, borderRadius: T.radiusSm }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: T.text, marginBottom: 10 }}>{v} ({k})</div>
+          <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 20 }}>Roles & Privileges</div>
+          {Object.entries(ROLE_LABELS).map(([k, v]) => (
+            <div key={k} style={{ marginBottom: 16, padding: 16, border: `1px solid ${T.border}`, borderRadius: T.radiusSm }}>
+              <div style={{ fontWeight: 800, marginBottom: 10 }}>{v}</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 {["Create Tasks", "Edit Organization", "Approve Stages", "View Financials", "Manage Users", "Access Settings"].map(priv => {
-                  const hasPriv = ["super_admin"].includes(k) || (k === "project_manager" && !["Manage Users", "Edit Organization"].includes(priv)) || (k === "dept_manager" && ["Create Tasks", "Approve Stages"].includes(priv));
+                  const rolePerms = permissions[k] || [];
+                  const hasPriv = rolePerms.includes(priv);
+                  const toggle = async () => {
+                    const next = hasPriv ? rolePerms.filter(p => p !== priv) : [...rolePerms, priv];
+                    await updateDoc(doc(db, "config", "permissions"), { [`roles.${k}`]: next });
+                  };
                   return (
-                    <div key={priv} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <input type="checkbox" checked={hasPriv} onChange={()=>{}} style={{ accentColor: T.blue }} />
-                      <span style={{ fontSize: 13, color: T.textMid }}>{priv}</span>
-                    </div>
+                    <label key={priv} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, cursor: "pointer" }}>
+                      <input type="checkbox" checked={hasPriv} onChange={toggle} disabled={k === "super_admin"} /> {priv}
+                    </label>
                   );
                 })}
               </div>
             </div>
-          ))}
-          <Btn sx={{ marginTop: 10 }}>Save Permissions</Btn>
-        </Card>
-      )}
-
-      {tab === "notifications" && (
-        <Card sx={{ padding: 24 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: T.text, marginBottom: 4 }}>Notification Settings</div>
-          <div style={{ fontSize: 12, color: T.textMid, marginBottom: 20 }}>Configure when and how you receive notifications.</div>
-          {[["Task assigned to me", "When a dept manager assigns you a task"], ["Stage updates", "When a task you created moves stages"], ["Revision requested", "When submitted work is sent back"], ["Client approval", "When a client approves or rejects"], ["Overdue alerts", "Daily digest of overdue tasks"], ["Weekly summary", "Monday morning open-work summary"]].map(([lbl, desc]) => (
-              <div key={lbl} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 0", borderBottom: `1px solid ${T.border}` }}>
-                <div><div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{lbl}</div><div style={{ fontSize: 11, color: T.textLight, marginTop: 2 }}>{desc}</div></div>
-                <Toggle checked={notifState[lbl]} onChange={v => setNotifState(p => ({ ...p, [lbl]: v }))} />
-              </div>
           ))}
         </Card>
       )}
 
       {tab === "general" && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-          <Card sx={{ padding: 24 }}>
-            <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 16 }}>Agency Profile</div>
-            <Inp label="Agency Name" value="PixelForge Agency" onChange={() => {}} />
-            <Inp label="Email" value="hello@pixelforge.io" onChange={() => {}} type="email" />
-            <Sel label="Currency" value="INR" onChange={() => {}} options={[{ value: "INR", label: "₹ INR — Indian Rupee" }, { value: "USD", label: "$ USD — US Dollar" }]} />
-            <Inp label="GST Number" value="29AADCP9876A1Z2" onChange={() => {}} placeholder="GSTIN" />
-            <Btn sx={{ marginTop: 4 }}>Save Changes</Btn>
+          <Card sx={{ padding: 24, gridColumn: "span 2" }}>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 16 }}>Security</div>
+            <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
+              <Inp label="New Password" id="new-pwd" type="password" sx={{ flex: 1 }} />
+              <Btn onClick={async () => {
+                const val = document.getElementById("new-pwd").value;
+                if (!val) return;
+                await updateDoc(doc(db, "users", currentUser.id), { password: val });
+                alert("Password updated successfully.");
+                document.getElementById("new-pwd").value = "";
+              }}>Update Password</Btn>
+            </div>
           </Card>
           <Card sx={{ padding: 24 }}>
-            <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 16 }}>Work Hours & SLA</div>
-            <Inp label="Default SLA (hours)" value="48" onChange={() => {}} type="number" />
-            <Inp label="Daily Work Hours" value="8" onChange={() => {}} type="number" />
-            <Sel label="Financial Year" value="apr" onChange={() => {}} options={[{ value: "apr", label: "April – March (India)" }, { value: "jan", label: "January – December" }]} />
-            <Inp label="GST Rate (%)" value="18" onChange={() => {}} type="number" />
-            <Btn sx={{ marginTop: 4 }}>Save Changes</Btn>
+            <div style={{ fontWeight: 800, marginBottom: 16 }}>Agency Profile</div>
+            <Inp label="Agency Name" value="PixelForge Agency" />
+            <Btn sx={{ marginTop: 8 }}>Save Agency</Btn>
           </Card>
         </div>
+      )}
+
+      {tab === "notifications" && (
+        <Card sx={{ padding: 24 }}>
+          <div style={{ fontWeight: 800, marginBottom: 20 }}>Notifications</div>
+          {Object.entries(notifState).map(([k, v]) => (
+            <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: `1px solid ${T.border}` }}>
+              <span>{k}</span>
+              <Toggle checked={v} onChange={newV => setNotifState(p => ({ ...p, [k]: newV }))} />
+            </div>
+          ))}
+        </Card>
       )}
     </div>
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// ROOT APP
-// ═══════════════════════════════════════════════════════════════════════
-export default function App() {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [users, setUsers] = useState(SEED_USERS);
+export default function App()  {
+  const [currentUser, setCurrentUser] = useState(() => { const saved = localStorage.getItem("wf_user"); return saved ? JSON.parse(saved) : null; });
+  const [users, setUsers] = useState([]);
   const [nav, setNav] = useState("dashboard");
-  const [tasks, setTasks] = useState(SEED_TASKS);
-  const [invoices, setInvoices] = useState(SEED_INVOICES);
-  const [clients, setClients] = useState(SEED_CLIENTS);
+  const [tasks, setTasks] = useState([]);
+  const [invoices, setInvoices] = useState([]);
+  const [clients, setClients] = useState([]);
   const [stages, setStages] = useState(STAGES_DEFAULT);
-  const [depts, setDepts] = useState(DEPTS_DEFAULT); // FIX #3 & #4 — depts now in state
-  const [automations, setAutomations] = useState(SEED_AUTOMATIONS);
+  const [depts, setDepts] = useState(DEPTS_DEFAULT);
+  const [automations, setAutomations] = useState([]);
+  const [permissions, setPermissions] = useState({});
   const [selectedTask, setSelectedTask] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [prefilledClient, setPrefilledClient] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  // REAL-TIME CLOUD SYNC
+  useEffect(() => {
+    const unsubUsers = onSnapshot(collection(db, "users"), (s) => {
+      const data = s.docs.map(d => ({ ...d.data(), id: d.id }));
+      if (data.length === 0 && loading) seedDatabase();
+      setUsers(data);
+    });
+    const unsubTasks = onSnapshot(collection(db, "tasks"), (s) => setTasks(s.docs.map(d => ({ ...d.data(), id: d.id }))));
+    const unsubInvoices = onSnapshot(collection(db, "invoices"), (s) => setInvoices(s.docs.map(d => ({ ...d.data(), id: d.id }))));
+    const unsubClients = onSnapshot(collection(db, "clients"), (s) => setClients(s.docs.map(d => ({ ...d.data(), id: d.id }))));
+    const unsubConfig = onSnapshot(collection(db, "config"), (s) => {
+      s.docs.forEach(d => {
+        if (d.id === "workflow" && d.data().stages?.length) setStages(d.data().stages);
+        if (d.id === "departments" && d.data().list?.length) setDepts(d.data().list);
+        if (d.id === "permissions") setPermissions(d.data().roles || {});
+        if (d.id === "automations") setAutomations(d.data().list || []);
+      });
+      setLoading(false);
+    });
+    
+    return () => { unsubTasks(); unsubInvoices(); unsubClients(); unsubUsers(); };
+  }, []);
+
+  const seedDatabase = async () => {
+    console.log("Seeding Master Configuration & Admin...");
+    await setDoc(doc(db, "config", "workflow"), { stages: STAGES_DEFAULT });
+    await setDoc(doc(db, "config", "departments"), { list: DEPTS_DEFAULT });
+    await setDoc(doc(db, "config", "automations"), { list: SEED_AUTOMATIONS });
+    
+    const initialPerms = {};
+    Object.keys(ROLE_LABELS).forEach(r => {
+      initialPerms[r] = ["Create Tasks", "Edit Organization", "Approve Stages", "View Financials", "Manage Users", "Access Settings"].filter(p => {
+         if (r === "super_admin") return true;
+         if (r === "project_manager") return ["Create Tasks", "Approve Stages", "View Financials", "Access Settings"].includes(p);
+         if (r === "dept_manager") return ["Create Tasks", "Approve Stages"].includes(p);
+         return false;
+      });
+    });
+    await setDoc(doc(db, "config", "permissions"), { roles: initialPerms });
+    for (const u of SEED_USERS) await setDoc(doc(db, "users", u.id), u);
+  };
 
   const PAGE_TITLES = { dashboard: "Dashboard", tasks: "Tasks", clients: "Clients", billing: "Billing & Invoices", reports: "Reports", audit: "Audit Log", team: "Team", settings: "Settings" };
 
-  const doTransition = useCallback((taskId, tx, comment, assigneeId) => {
-    setTasks(prev => prev.map(t => {
-      if (t.id !== taskId) return t;
-      const newTr = { from: t.stage, to: tx.to, actor: currentUser.id, comment: comment || null, ts: new Date().toISOString(), isRejection: !!tx.isReject };
-      return { ...t, stage: tx.to, revisionCount: tx.isReject ? t.revisionCount + 1 : t.revisionCount, revisionOverheadHours: tx.isReject ? t.revisionOverheadHours + 2 : t.revisionOverheadHours, completedAt: tx.to === "completed" ? new Date().toISOString() : t.completedAt, assignedTo: tx.action === "assign" ? (assigneeId || t.assignedTo) : t.assignedTo, transitions: [...t.transitions, newTr] };
-    }));
-  }, [currentUser]);
+  const doTransition = useCallback(async (taskId, tx, comment, assigneeId) => {
+    const t = tasks.find(x => x.id === taskId);
+    if (!t) return;
 
-  const updateTask = useCallback((id, updates) => setTasks(p => p.map(t => t.id === id ? { ...t, ...updates } : t)), []);
+    // RBAC: Only Assigned Member, PM, or DM (in same dept) can move task
+    const isAssigned = t.assignedTo === currentUser.id;
+    const isPM = [ROLES.SA, ROLES.PM].includes(currentUser.role);
+    const isDMAssigned = currentUser.role === ROLES.DM && currentUser.dept === t.deptId;
+    
+    if (!isAssigned && !isPM && !isDMAssigned) {
+       alert("Workflow Control: Only the assigned member or your department manager can advance this task.");
+       return;
+    }
+
+    if (!t.assignedTo && !assigneeId && tx.to !== "created") {
+       alert("Task must be assigned to a team member before moving it out of 'Created'.");
+       return;
+    }
+
+    const newTr = { from: t.stage, to: tx.to, actor: currentUser.id, comment: comment || null, ts: new Date().toISOString(), isRejection: !!tx.isReject };
+    await updateDoc(doc(db, "tasks", taskId), { 
+      stage: tx.to, 
+      revisionCount: tx.isReject ? t.revisionCount + 1 : t.revisionCount, 
+      revisionOverheadHours: tx.isReject ? t.revisionOverheadHours + 2 : t.revisionOverheadHours, 
+      completedAt: tx.to === "completed" ? new Date().toISOString() : t.completedAt, 
+      assignedTo: assigneeId || t.assignedTo || null, 
+      transitions: [...(t.transitions || []), newTr] 
+    });
+  }, [currentUser, tasks]);
+
+  const updateTask = useCallback(async (id, updates) => await updateDoc(doc(db, "tasks", id), updates), []);
 
   if (!currentUser) return <LoginScreen onLogin={setCurrentUser} />;
 
   const isClient = currentUser.role === ROLES.CL;
-  const ctx = { tasks, setTasks, invoices, setInvoices, clients, setClients, stages, setStages, depts, setDepts, automations, setAutomations, users, setUsers, currentUser, doTransition, updateTask };
+  const ctx = { tasks, setTasks, invoices, setInvoices, clients, setClients, stages, setStages, depts, setDepts, automations, setAutomations, users, setUsers, currentUser, doTransition, updateTask, permissions, setPermissions };
 
   return (
     <Ctx.Provider value={ctx}>
@@ -2220,7 +2210,7 @@ export default function App() {
         button{font-family:${T.font};}
       `}</style>
       <div style={{ display: "flex", minHeight: "100vh" }}>
-        {!isClient && <Sidebar nav={nav} setNav={setNav} currentUser={currentUser} onLogout={() => { setCurrentUser(null); setNav("dashboard"); }} />}
+        {!isClient && <Sidebar nav={nav} setNav={setNav} currentUser={currentUser} onLogout={() => { localStorage.removeItem("wf_user"); setCurrentUser(null); setNav("dashboard"); }} />}
         <div style={{ flex: 1, marginLeft: isClient ? 0 : 216, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
           <TopBar title={PAGE_TITLES[nav] || "Dashboard"} actions={
             <div style={{ display: "flex", gap: 8 }}>
@@ -2242,6 +2232,7 @@ export default function App() {
       </div>
       {selectedTask && <TaskDetail taskId={selectedTask} onClose={() => setSelectedTask(null)} />}
       {showCreate && nav !== "tasks" && <CreateTaskModal onClose={() => { setShowCreate(false); setPrefilledClient(""); }} initialClient={prefilledClient} />}
+      <GlobalTimer />
     </Ctx.Provider>
   );
 }
