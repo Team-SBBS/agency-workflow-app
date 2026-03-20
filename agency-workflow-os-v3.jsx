@@ -399,13 +399,30 @@ function LoginScreen({ onLogin }) {
 
   const DEMOS = [];
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setError(""); setLoading(true);
-    setTimeout(() => {
-      const u = SEED_USERS.find(u => u.email === email.trim().toLowerCase() && u.password === password);
-      if (u) { localStorage.setItem("wf_user", JSON.stringify(u)); onLogin(u); } else { setError("Invalid email or password. Please check your credentials."); }
+    try {
+      // Fetch from Firestore
+      const snap = await getDocs(collection(db, "users"));
+      const allUsers = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      
+      // Merge with SEED_USERS in case DB is empty or for initial admin
+      const combined = [...SEED_USERS, ...allUsers];
+      
+      const u = combined.find(u => u.email?.trim().toLowerCase() === email.trim().toLowerCase() && u.password === password);
+      
+      if (u) { 
+        localStorage.setItem("wf_user", JSON.stringify(u)); 
+        onLogin(u); 
+      } else { 
+        setError("Invalid email or password. Please check your credentials."); 
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Connection error. Please check your internet or Firebase config.");
+    } finally {
       setLoading(false);
-    }, 600);
+    }
   };
 
   return (
