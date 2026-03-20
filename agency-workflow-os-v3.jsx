@@ -1,4 +1,20 @@
-import { useState, useCallback, useRef, createContext, useContext } from "react";
+import { useState, useCallback, useRef, createContext, useContext, useEffect } from "react";
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, query, orderBy, limit, getDocs } from "firebase/firestore";
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyCIyWWhBVwHsyX7g-j_v6eRopyB2vqCg-k",
+  authDomain: "agency-management-sofwtare.firebaseapp.com",
+  projectId: "agency-management-sofwtare",
+  storageBucket: "agency-management-sofwtare.firebasestorage.app",
+  messagingSenderId: "224916921374",
+  appId: "1:224916921374:web:ac3c142efd478d6587220f"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // DESIGN TOKENS
@@ -1196,7 +1212,7 @@ function BulkUploadModal({ onClose }) {
       transitions: [{ from: null, to: "created", actor: currentUser.id, comment: null, ts: new Date().toISOString() }],
     }));
     
-    setTasks(p => [...p, ...newTasks]);
+    newTasks.forEach(async t => await setDoc(doc(db, "tasks", t.id), t));
     onClose();
   };
 
@@ -1393,7 +1409,7 @@ function ClientsPage({ openTask, openCreate }) {
           <Inp label="GST Number" value={nf.gst} onChange={v => setNF(p => ({ ...p, gst: v }))} placeholder="27AABCT1234A1Z5" />
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <Btn variant="secondary" onClick={() => setShowAdd(false)}>Cancel</Btn>
-            <Btn onClick={() => { if (nf.name) { setClients(p => [...p, { id: uuid(), ...nf, retainer: parseFloat(nf.retainer) || 0, portalUser: null }]); setShowAdd(false); } }} disabled={!nf.name}>Add Client</Btn>
+            <Btn onClick={() => { if (nf.name) { await addDoc(collection(db, "clients"), { ...nf, retainer: parseFloat(nf.retainer) || 0, portalUser: null }); setShowAdd(false); } }} disabled={!nf.name}>Add Client</Btn>
           </div>
         </Modal>
       )}
@@ -1416,12 +1432,12 @@ function BillingPage() {
     if (!clientUnbilled.length) return;
     const amount = clientUnbilled.reduce((a, t) => a + (t.actualHours * 1000), 0); // Mock rate 1000/hr
     const newInv = { id: uuid(), number: "INV-" + Math.floor(Math.random()*10000), clientId, amount: amount || 5000, status: "sent", issuedDate: dF(0), dueDate: dF(14), paidDate: null, taskIds: clientUnbilled.map(t=>t.id) };
-    setInvoices(p => [...p, newInv]);
-    setTasks(p => p.map(t => clientUnbilled.find(c => c.id === t.id) ? { ...t, isInvoiced: true, invoiceId: newInv.id } : t));
+    await addDoc(collection(db, "invoices"), newInv);
+    clientUnbilled.forEach(async t => await updateDoc(doc(db, "tasks", t.id), { isInvoiced: true, invoiceId: newInv.id }));
   };
 
   const markPaid = (id) => {
-    setInvoices(p => p.map(i => i.id === id ? { ...i, status: "paid", paidDate: dF(0) } : i));
+    await updateDoc(doc(db, "invoices", id), { status: "paid", paidDate: dF(0) });
   };
 
   const totalRev = invoices.filter(i => i.status === "paid").reduce((a, i) => a + i.amount, 0);
