@@ -1892,7 +1892,7 @@ function BulkUserModal({ onClose }) {
         dept,
         color: "#" + Math.floor(Math.random()*16777215).toString(16),
         av: name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0,2),
-        password: "DefaultPassword@123",
+        password: "Sbbs@123",
         createdAt: new Date().toISOString()
       });
     }
@@ -1941,17 +1941,17 @@ function TeamPage() {
   const [showInvite, setShowInvite] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  const [form, setForm] = useState({ name: "", email: "", role: "", dept: [] });
+  const [form, setForm] = useState({ name: "", email: "", role: "", dept: [], password: "Sbbs@123" });
   
-  const openInvite = () => { setForm({ name: "", email: "", role: "", dept: [] }); setEditingUser(null); setShowInvite(true); };
-  const openEdit = (u) => { setForm({ name: u.name, email: u.email, role: u.role, dept: Array.isArray(u.dept) ? u.dept : (u.dept ? [u.dept] : []) }); setEditingUser(u); setShowInvite(true); };
+  const openInvite = () => { setForm({ name: "", email: "", role: "", dept: [], password: "Sbbs@123" }); setEditingUser(null); setShowInvite(true); };
+  const openEdit = (u) => { setForm({ name: u.name, email: u.email, role: u.role, dept: Array.isArray(u.dept) ? u.dept : (u.dept ? [u.dept] : []), password: u.password || "" }); setEditingUser(u); setShowInvite(true); };
 
   const save = async () => {
     if(!form.name || !form.email || !form.role) return;
     if (editingUser) {
       await updateDoc(doc(db, "users", editingUser.id), { ...form, av: form.name.substring(0,2).toUpperCase() });
     } else {
-      await addDoc(collection(db, "users"), { id: uuid(), ...form, av: form.name.substring(0,2).toUpperCase(), color: "#4F46E5", password: "temp123", createdAt: new Date().toISOString() });
+      await addDoc(collection(db, "users"), { id: uuid(), ...form, av: form.name.substring(0,2).toUpperCase(), color: "#4F46E5", createdAt: new Date().toISOString() });
     }
     setShowInvite(false);
   };
@@ -2005,6 +2005,7 @@ function TeamPage() {
                </select>
              </div>
           )}
+          <Inp label="Login Password" value={form.password} onChange={v => setForm(p => ({ ...p, password: v }))} required />
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <Btn variant="secondary" onClick={() => setShowInvite(false)}>Cancel</Btn>
             <Btn onClick={save} disabled={!form.name || !form.email || !form.role}>{editingUser ? "Save Changes" : "Send Invite"}</Btn>
