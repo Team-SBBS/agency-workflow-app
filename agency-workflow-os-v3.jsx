@@ -2244,8 +2244,18 @@ function SettingsPage() {
                   <div style={{ fontSize: 11, fontWeight: 800, color: T.textLight, textTransform: "uppercase", marginBottom: 10 }}>1. Trigger</div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     <Sel label="When..." value={autoForm.trigger} onChange={v => setAutoForm(p => ({ ...p, trigger: v }))} options={AUTOMATION_TRIGGERS.map(t => ({ value: t.id, label: t.label }))} />
-                    {["stage_changed", "assigned_changed", "priority_changed"].includes(autoForm.trigger) && (
-                      <Inp label="Value equals..." value={autoForm.triggerValue} onChange={v => setAutoForm(p => ({ ...p, triggerValue: v }))} />
+                    
+                    {autoForm.trigger === "stage_changed" && (
+                      <Sel label="Stage is..." value={autoForm.triggerValue} onChange={v => setAutoForm(p => ({ ...p, triggerValue: v }))} options={stages.map(s => ({ value: s.id, label: s.label }))} />
+                    )}
+                    {autoForm.trigger === "assigned_changed" && (
+                      <Sel label="Assignee is..." value={autoForm.triggerValue} onChange={v => setAutoForm(p => ({ ...p, triggerValue: v }))} options={users.filter(u => u.role !== ROLES.CL).map(u => ({ value: u.id, label: u.name }))} />
+                    )}
+                    {autoForm.trigger === "priority_changed" && (
+                      <Sel label="Priority is..." value={autoForm.triggerValue} onChange={v => setAutoForm(p => ({ ...p, triggerValue: v }))} options={Object.entries(PRIORITY_CFG).map(([k, x]) => ({ value: k, label: x.label }))} />
+                    )}
+                    {!["stage_changed", "assigned_changed", "priority_changed", "task_created", "task_updated", "subtask_completed", "all_subtasks_done", "checklist_done", "overdue", "due_approaching"].includes(autoForm.trigger) && autoForm.triggerValue && (
+                       <Inp label="Value equals..." value={autoForm.triggerValue} onChange={v => setAutoForm(p => ({ ...p, triggerValue: v }))} />
                     )}
                   </div>
                 </div>
@@ -2264,9 +2274,19 @@ function SettingsPage() {
                         <Sel label="Is" value={c.operator} onChange={v => {
                           const nc = [...autoForm.conditions]; nc[i].operator = v; setAutoForm(p => ({ ...p, conditions: nc }));
                         }} options={[{value: "==", label: "Equals"}, {value: "!=", label: "Not Equals"}, {value: "contains", label: "Contains"}]} />
-                        <Inp label="Value" value={c.value} onChange={v => {
-                          const nc = [...autoForm.conditions]; nc[i].value = v; setAutoForm(p => ({ ...p, conditions: nc }));
-                        }} />
+                        
+                        {c.field === "priority" ? (
+                          <Sel label="Value" value={c.value} onChange={v => { const nc = [...autoForm.conditions]; nc[i].value = v; setAutoForm(p => ({ ...p, conditions: nc })); }} options={Object.entries(PRIORITY_CFG).map(([k, x]) => ({ value: k, label: x.label }))} />
+                        ) : c.field === "deptId" ? (
+                          <Sel label="Value" value={c.value} onChange={v => { const nc = [...autoForm.conditions]; nc[i].value = v; setAutoForm(p => ({ ...p, conditions: nc })); }} options={depts.map(d => ({ value: d.id, label: d.name }))} />
+                        ) : c.field === "isBillable" ? (
+                          <Sel label="Value" value={c.value === "true" || c.value === true} onChange={v => { const nc = [...autoForm.conditions]; nc[i].value = v; setAutoForm(p => ({ ...p, conditions: nc })); }} options={[{value: true, label: "Yes"}, {value: false, label: "No"}]} />
+                        ) : (
+                          <Inp label="Value" value={c.value} onChange={v => {
+                            const nc = [...autoForm.conditions]; nc[i].value = v; setAutoForm(p => ({ ...p, conditions: nc }));
+                          }} />
+                        )}
+
                         <Btn size="sm" variant="ghost" sx={{ color: T.danger }} onClick={() => {
                           const nc = autoForm.conditions.filter((_, idx) => idx !== i);
                           setAutoForm(p => ({ ...p, conditions: nc }));
@@ -2290,9 +2310,19 @@ function SettingsPage() {
                         <Sel label="Action Type" value={a.type} onChange={v => {
                           const na = [...autoForm.actions]; na[i].type = v; setAutoForm(p => ({ ...p, actions: na }));
                         }} options={AUTOMATION_ACTIONS.map(x => ({ value: x.id, label: x.label }))} />
-                        <Inp label="Action Value" value={a.value} onChange={v => {
-                          const na = [...autoForm.actions]; na[i].value = v; setAutoForm(p => ({ ...p, actions: na }));
-                        }} />
+                        
+                        {a.type === "assign_to" ? (
+                          <Sel label="Assign to" value={a.value} onChange={v => { const na = [...autoForm.actions]; na[i].value = v; setAutoForm(p => ({ ...p, actions: na })); }} options={users.filter(u => u.role !== ROLES.CL).map(u => ({ value: u.id, label: u.name }))} />
+                        ) : a.type === "change_stage" ? (
+                          <Sel label="Stage" value={a.value} onChange={v => { const na = [...autoForm.actions]; na[i].value = v; setAutoForm(p => ({ ...p, actions: na })); }} options={stages.map(s => ({ value: s.id, label: s.label }))} />
+                        ) : a.type === "change_priority" ? (
+                          <Sel label="Priority" value={a.value} onChange={v => { const na = [...autoForm.actions]; na[i].value = v; setAutoForm(p => ({ ...p, actions: na })); }} options={Object.entries(PRIORITY_CFG).map(([k, x]) => ({ value: k, label: x.label }))} />
+                        ) : (
+                          <Inp label="Action Value" value={a.value} onChange={v => {
+                            const na = [...autoForm.actions]; na[i].value = v; setAutoForm(p => ({ ...p, actions: na }));
+                          }} />
+                        )}
+
                         <Btn size="sm" variant="ghost" sx={{ color: T.danger }} onClick={() => {
                           const na = autoForm.actions.filter((_, idx) => idx !== i);
                           setAutoForm(p => ({ ...p, actions: na }));
