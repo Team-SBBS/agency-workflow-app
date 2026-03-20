@@ -100,17 +100,28 @@ const DEPTS_DEFAULT = [
 ];
 
 const AUTOMATION_TRIGGERS = [
-  { id:"stage_change",   label:"When stage changes to…" },
-  { id:"overdue",        label:"When task becomes overdue" },
-  { id:"created",        label:"When a new task is created" },
-  { id:"revision_count", label:"When revision count exceeds…" },
+  { id: "task_created", label: "Task is created" },
+  { id: "task_updated", label: "Task any field updated" },
+  { id: "stage_changed", label: "Workflow stage changes to..." },
+  { id: "assigned_changed", label: "Assignee changes to..." },
+  { id: "priority_changed", label: "Priority changes to..." },
+  { id: "subtask_completed", label: "Any subtask completed" },
+  { id: "all_subtasks_done", label: "All subtasks completed" },
+  { id: "checklist_done", label: "All checklist items completed" },
+  { id: "overdue", label: "Task becomes overdue" },
+  { id: "due_approaching", label: "Due date is approaching (24h)" },
 ];
+
 const AUTOMATION_ACTIONS = [
-  { id:"notify_slack",    label:"Send Slack notification" },
-  { id:"notify_email",    label:"Send email notification" },
-  { id:"assign_to",       label:"Auto-assign to…" },
-  { id:"change_priority", label:"Change priority to…" },
-  { id:"add_tag",         label:"Add tag" },
+  { id: "assign_to", label: "Assign task to..." },
+  { id: "change_stage", label: "Move to stage..." },
+  { id: "change_priority", label: "Set priority to..." },
+  { id: "add_comment", label: "Add a comment" },
+  { id: "create_subtask", label: "Create a subtask" },
+  { id: "add_checklist", label: "Add checklist items" },
+  { id: "set_due_date", label: "Set due date (days from now)" },
+  { id: "notify_email", label: "Send email notification" },
+  { id: "notify_slack", label: "Send Slack notification" },
 ];
 
 // ── SEED DATA ────────────────────────────────────────────────────
@@ -129,9 +140,26 @@ const SEED_TASKS = [];
 const SEED_INVOICES = [];
 
 const SEED_AUTOMATIONS = [
-  { id:"a1", name:"Notify PM on Dept Approval", trigger:"stage_change", triggerValue:"dept_approved", action:"notify_email",    actionValue:"pm",       active:true  },
-  { id:"a2", name:"Flag overdue tasks critical", trigger:"overdue",      triggerValue:"",              action:"change_priority", actionValue:"critical",  active:true  },
-  { id:"a3", name:"Slack on client review",      trigger:"stage_change", triggerValue:"client_review", action:"notify_slack",    actionValue:"#updates", active:false },
+  { 
+    id: "a1", 
+    name: "Auto-assign on Design Stage", 
+    trigger: "stage_changed", 
+    triggerValue: "design", 
+    conditions: [],
+    conditionLogic: "AND",
+    actions: [{ type: "assign_to", value: "admin-sbbs" }],
+    active: true 
+  },
+  { 
+    id: "a2", 
+    name: "Flag Critical Tasks", 
+    trigger: "priority_changed", 
+    triggerValue: "critical", 
+    conditions: [],
+    conditionLogic: "AND",
+    actions: [{ type: "add_comment", value: "System: This critical task requires immediate attention." }],
+    active: true 
+  }
 ];
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -469,7 +497,7 @@ function TaskCard({ task, onClick, stages, depts }) {
 // CREATE TASK MODAL — FIX #1 (client search), FIX #6 (billing type conditional)
 // ═══════════════════════════════════════════════════════════════════════
 function CreateTaskModal({ onClose, initialClient = "" }) {
-  const { setTasks, currentUser, stages, clients, depts, users } = useApp();
+  const { setTasks, currentUser, stages, clients, depts, users, runAutomations } = useApp();
   const [f, setF] = useState({ title: "", description: "", clientId: initialClient, deptId: "", priority: "medium", billingType: "retainer", isBillable: true, estimatedHours: 8, dueDate: dF(14), startDate: dF(0), tags: "" });
   const set = (k, v) => setF(p => ({ ...p, [k]: v }));
 
@@ -490,8 +518,10 @@ function CreateTaskModal({ onClose, initialClient = "" }) {
     };
     const saveTask = async () => {
       try {
-        await addDoc(collection(db, "tasks"), t);
+        const docRef = await addDoc(collection(db, "tasks"), t);
         onClose();
+        // FIRE AUTOMATION
+        runAutomations("task_created", { taskId: docRef.id, task: t });
       } catch (err) {
         console.error("Error adding task: ", err);
         alert("Could not save task to cloud. Please check your Firestore rules.");
@@ -1829,9 +1859,87 @@ function AuditPage() {
 // ═══════════════════════════════════════════════════════════════════════
 // TEAM PAGE
 // ═══════════════════════════════════════════════════════════════════════
+function BulkUserModal({ onClose }) {
+  const { users, depts, setUsers } = useApp();
+  const [text, setText] = useState("");
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleUpload = async () => {
+    setLoading(true);
+    setError(null);
+    const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+    const newUsers = [];
+    
+    for (const line of lines) {
+      const parts = line.split(",").map(s => s.trim());
+      const [name, email, roleKey, deptName] = parts;
+      
+      if (!name || !email || !roleKey) {
+        setError(`Invalid line: "${line}". Expected format: Name, Email, Role, [Department]`);
+        setLoading(false);
+        return;
+      }
+      
+      const role = ROLES[roleKey.toUpperCase()] || roleKey;
+      const dept = depts.find(d => d.name.toLowerCase() === deptName?.toLowerCase())?.id || null;
+      
+      newUsers.push({
+        id: uuid(),
+        name,
+        email,
+        role,
+        dept,
+        color: "#" + Math.floor(Math.random()*16777215).toString(16),
+        av: name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0,2),
+        password: "DefaultPassword@123",
+        createdAt: new Date().toISOString()
+      });
+    }
+
+    try {
+      for (const u of newUsers) {
+        await setDoc(doc(db, "users", u.id), u);
+      }
+      setLoading(false);
+      onClose();
+    } catch (err) {
+      console.error(err);
+      setError("Failed to upload users: " + err.message);
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal title="Bulk Upload Users" onClose={onClose} width={500}>
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 11, color: T.textLight, marginBottom: 10, padding: 10, background: T.bg, borderRadius: T.radiusSm }}>
+          <strong>Format:</strong> <code>Name, Email, Role, Department</code> (one per line)<br/>
+          <strong>Roles:</strong> PM (Project Manager), DM (Dept Manager), M (Member), CL (Client), SA (Super Admin)<br/>
+          <strong>Example:</strong> <code>John Doe, john@sbbs.com, M, Design</code>
+        </div>
+        <textarea 
+          value={text} 
+          onChange={e => setText(e.target.value)} 
+          style={{ width: "100%", height: 200, padding: 10, border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontFamily: T.fontMono, fontSize: 12, outline: "none", background: T.surface }}
+          placeholder="Name, Email, Role, Dept..."
+        />
+      </div>
+      {error && <div style={{ color: T.danger, fontSize: 12, marginBottom: 10, fontWeight: 700 }}>⚠️ {error}</div>}
+      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+        <Btn variant="secondary" onClick={onClose} disabled={loading}>Cancel</Btn>
+        <Btn onClick={handleUpload} disabled={loading || !text.trim()}>
+          {loading ? "Uploading..." : `Upload ${text.split("\n").filter(l => l.trim()).length} Users`}
+        </Btn>
+      </div>
+    </Modal>
+  );
+}
+
 function TeamPage() {
   const { tasks, depts, users, setUsers } = useApp();
   const [showInvite, setShowInvite] = useState(false);
+  const [showBulk, setShowBulk] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [form, setForm] = useState({ name: "", email: "", role: "", dept: [] });
   
@@ -1852,7 +1960,11 @@ function TeamPage() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}><Btn onClick={openInvite}>+ Invite Member</Btn></div>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginBottom: 16 }}>
+        <Btn variant="secondary" onClick={() => setShowBulk(true)}>Bulk Upload</Btn>
+        <Btn onClick={openInvite}>+ Invite Member</Btn>
+      </div>
+      {showBulk && <BulkUserModal onClose={() => setShowBulk(false)} />}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 14 }}>
         {(users || SEED_USERS).filter(u => u.role !== ROLES.CL).map(u => {
           const ut = tasks.filter(t => t.assignedTo === u.id);
@@ -1907,8 +2019,12 @@ function TeamPage() {
 // SETTINGS PAGE — FIX #4 (dept CRUD) + FIX #5 (stage edit)
 // ═══════════════════════════════════════════════════════════════════════
 function SettingsPage() {
-  const { tasks, stages, depts, users, currentUser, updateTask, permissions } = useApp();
+  const { tasks, stages, depts, users, currentUser, updateTask, permissions, automations } = useApp();
   const [tab, setTab] = useState("workflow");
+
+  const [editingAuto, setEditingAuto] = useState(null);
+  const [showAutoModal, setShowAutoModal] = useState(false);
+  const [autoForm, setAutoForm] = useState({ name: "", trigger: "stage_changed", triggerValue: "", conditions: [], conditionLogic: "AND", actions: [{ type: "assign_to", value: "" }], active: true });
 
   // Stage form state
   const [showAddStage, setShowAddStage] = useState(false);
@@ -1922,7 +2038,7 @@ function SettingsPage() {
 
   const [notifState, setNotifState] = useState({"Task assigned to me": true, "Stage updates": true, "Revision requested": true, "Client approval": true, "Overdue alerts": false, "Weekly summary": false});
 
-  const TABS = [["workflow", "⚙ Workflow Builder"], ["departments", "🏢 Departments"], ["roles", "🔒 Roles & Privileges"], ["notifications", "🔔 Notifications"], ["general", "🏢 General"]];
+  const TABS = [["workflow", "⚙ Workflow Builder"], ["departments", "🏢 Departments"], ["roles", "🔒 Roles & Privileges"], ["automations", "🤖 Automations"], ["notifications", "🔔 Notifications"], ["general", "🏢 General"]];
 
   const saveStage = async () => {
     if (!stageForm.label) return;
@@ -2084,6 +2200,122 @@ function SettingsPage() {
         </div>
       )}
 
+      {tab === "automations" && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+            <div><div style={{ fontSize: 16, fontWeight: 800 }}>Automations</div><div style={{ fontSize: 12, color: T.textMid }}>Trigger actions based on task events and conditions.</div></div>
+            <Btn onClick={() => { setEditingAuto(null); setAutoForm({ name: "", trigger: "stage_changed", triggerValue: "", conditions: [], conditionLogic: "AND", actions: [{ type: "assign_to", value: "" }], active: true }); setShowAutoModal(true); }}>+ New Automation</Btn>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {automations.map(a => (
+              <Card key={a.id} sx={{ padding: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: a.active ? T.blueLight : T.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{a.active ? "🤖" : "💤"}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 800, fontSize: 14 }}>{a.name}</div>
+                    <div style={{ fontSize: 11, color: T.textLight }}>{AUTOMATION_TRIGGERS.find(t => t.id === a.trigger)?.label} {a.triggerValue && `→ ${a.triggerValue}`}</div>
+                  </div>
+                  <Toggle checked={a.active} onChange={async (v) => {
+                    const final = automations.map(x => x.id === a.id ? { ...x, active: v } : x);
+                    await updateDoc(doc(db, "config", "automations"), { list: final });
+                  }} />
+                  <Btn size="sm" variant="ghost" onClick={() => {
+                    setEditingAuto(a.id);
+                    setAutoForm({ ...a });
+                    setShowAutoModal(true);
+                  }}>Edit</Btn>
+                  <Btn size="sm" variant="ghost" sx={{ color: T.danger }} onClick={async () => {
+                    if (confirm("Delete automation?")) {
+                      const final = automations.filter(x => x.id !== a.id);
+                      await updateDoc(doc(db, "config", "automations"), { list: final });
+                    }
+                  }}>Delete</Btn>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {showAutoModal && (
+            <Modal title={editingAuto ? "Edit Automation" : "New Automation"} onClose={() => setShowAutoModal(false)} width={600}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <Inp label="Automation Name" value={autoForm.name} onChange={v => setAutoForm(p => ({ ...p, name: v }))} required />
+                
+                <div style={{ padding: 14, background: T.bg, borderRadius: T.radiusSm }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: T.textLight, textTransform: "uppercase", marginBottom: 10 }}>1. Trigger</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    <Sel label="When..." value={autoForm.trigger} onChange={v => setAutoForm(p => ({ ...p, trigger: v }))} options={AUTOMATION_TRIGGERS.map(t => ({ value: t.id, label: t.label }))} />
+                    {["stage_changed", "assigned_changed", "priority_changed"].includes(autoForm.trigger) && (
+                      <Inp label="Value equals..." value={autoForm.triggerValue} onChange={v => setAutoForm(p => ({ ...p, triggerValue: v }))} />
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ padding: 14, background: T.bg, borderRadius: T.radiusSm }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: T.textLight, textTransform: "uppercase" }}>2. Conditions (Optional)</div>
+                    <Btn size="sm" variant="ghost" onClick={() => setAutoForm(p => ({ ...p, conditions: [...(p.conditions || []), { field: "priority", operator: "==", value: "" }] }))}>+ Add</Btn>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {(autoForm.conditions || []).map((c, i) => (
+                      <div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
+                        <Sel label="Field" value={c.field} onChange={v => {
+                          const nc = [...autoForm.conditions]; nc[i].field = v; setAutoForm(p => ({ ...p, conditions: nc }));
+                        }} options={[{value: "priority", label: "Priority"}, {value: "deptId", label: "Department"}, {value: "isBillable", label: "Billable"}]} />
+                        <Sel label="Is" value={c.operator} onChange={v => {
+                          const nc = [...autoForm.conditions]; nc[i].operator = v; setAutoForm(p => ({ ...p, conditions: nc }));
+                        }} options={[{value: "==", label: "Equals"}, {value: "!=", label: "Not Equals"}, {value: "contains", label: "Contains"}]} />
+                        <Inp label="Value" value={c.value} onChange={v => {
+                          const nc = [...autoForm.conditions]; nc[i].value = v; setAutoForm(p => ({ ...p, conditions: nc }));
+                        }} />
+                        <Btn size="sm" variant="ghost" sx={{ color: T.danger }} onClick={() => {
+                          const nc = autoForm.conditions.filter((_, idx) => idx !== i);
+                          setAutoForm(p => ({ ...p, conditions: nc }));
+                        }}>✕</Btn>
+                      </div>
+                    ))}
+                    {autoForm.conditions?.length > 1 && (
+                      <Sel label="Logic" value={autoForm.conditionLogic} onChange={v => setAutoForm(p => ({ ...p, conditionLogic: v }))} options={[{value: "AND", label: "Match ALL conditions"}, {value: "OR", label: "Match ANY condition"}]} />
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ padding: 14, background: T.bg, borderRadius: T.radiusSm }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: T.textLight, textTransform: "uppercase" }}>3. Action</div>
+                    <Btn size="sm" variant="ghost" onClick={() => setAutoForm(p => ({ ...p, actions: [...(p.actions || []), { type: "assign_to", value: "" }] }))}>+ Add Action</Btn>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {(autoForm.actions || []).map((a, i) => (
+                      <div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-end", paddingBottom: 8, borderBottom: i < autoForm.actions.length-1 ? `1px dashed ${T.border}` : "none" }}>
+                        <Sel label="Action Type" value={a.type} onChange={v => {
+                          const na = [...autoForm.actions]; na[i].type = v; setAutoForm(p => ({ ...p, actions: na }));
+                        }} options={AUTOMATION_ACTIONS.map(x => ({ value: x.id, label: x.label }))} />
+                        <Inp label="Action Value" value={a.value} onChange={v => {
+                          const na = [...autoForm.actions]; na[i].value = v; setAutoForm(p => ({ ...p, actions: na }));
+                        }} />
+                        <Btn size="sm" variant="ghost" sx={{ color: T.danger }} onClick={() => {
+                          const na = autoForm.actions.filter((_, idx) => idx !== i);
+                          setAutoForm(p => ({ ...p, actions: na }));
+                        }}>✕</Btn>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <Btn full onClick={async () => {
+                  if (!autoForm.name) return;
+                  const final = editingAuto 
+                    ? automations.map(x => x.id === editingAuto ? { ...autoForm } : x)
+                    : [...automations, { ...autoForm, id: uuid() }];
+                  await updateDoc(doc(db, "config", "automations"), { list: final });
+                  setShowAutoModal(false);
+                }}>Save Automation</Btn>
+              </div>
+            </Modal>
+          )}
+        </div>
+      )}
+
       {tab === "notifications" && (
         <Card sx={{ padding: 24 }}>
           <div style={{ fontWeight: 800, marginBottom: 20 }}>Notifications</div>
@@ -2159,24 +2391,73 @@ export default function App()  {
 
   const PAGE_TITLES = { dashboard: "Dashboard", tasks: "Tasks", clients: "Clients", billing: "Billing & Invoices", reports: "Reports", audit: "Audit Log", team: "Team", settings: "Settings" };
 
+  const runAutomations = useCallback(async (triggerType, triggerData) => {
+    if (!automations.length) return;
+    const activeAutos = automations.filter(a => a.active && a.trigger === triggerType);
+    
+    for (const auto of activeAutos) {
+      if (auto.triggerValue && triggerData.triggerValue !== auto.triggerValue) continue;
+      
+      const task = tasks.find(t => t.id === triggerData.taskId) || triggerData.task;
+      if (!task) continue;
+
+      let conditionsMet = true;
+      if (auto.conditions?.length) {
+        const results = auto.conditions.map(c => {
+          const val = task[c.field];
+          if (c.operator === "==") return val === c.value;
+          if (c.operator === "!=") return val !== c.value;
+          if (c.operator === "contains") return Array.isArray(val) ? val.includes(c.value) : String(val).includes(c.value);
+          return false;
+        });
+        conditionsMet = auto.conditionLogic === "OR" ? results.some(r => r) : results.every(r => r);
+      }
+      if (!conditionsMet) continue;
+
+      const actions = auto.actions || [{ type: auto.action, value: auto.actionValue }];
+      for (const action of actions) {
+        switch (action.type) {
+          case "assign_to": 
+            await updateDoc(doc(db, "tasks", task.id), { assignedTo: action.value }); 
+            break;
+          case "change_stage": 
+            await updateDoc(doc(db, "tasks", task.id), { stage: action.value }); 
+            break;
+          case "change_priority": 
+            await updateDoc(doc(db, "tasks", task.id), { priority: action.value }); 
+            break;
+          case "add_comment":
+            const newComment = { id: uuid(), userId: "system", text: action.value, ts: new Date().toISOString() };
+            await updateDoc(doc(db, "tasks", task.id), { comments: [...(task.comments || []), newComment] });
+            break;
+          case "create_subtask":
+            const newSub = { id: uuid(), title: action.value, completed: false };
+            await updateDoc(doc(db, "tasks", task.id), { subtasks: [...(task.subtasks || []), newSub] });
+            break;
+          case "add_checklist":
+            const newCheck = { id: uuid(), text: action.value, done: false };
+            await updateDoc(doc(db, "tasks", task.id), { checklist: [...(task.checklist || []), newCheck] });
+            break;
+          case "set_due_date":
+            const days = parseInt(action.value) || 0;
+            const newDue = new Date(Date.now() + days * 86400000).toISOString().slice(0,10);
+            await updateDoc(doc(db, "tasks", task.id), { dueDate: newDue });
+            break;
+        }
+      }
+    }
+  }, [automations, tasks]);
+
   const doTransition = useCallback(async (taskId, tx, comment, assigneeId) => {
     const t = tasks.find(x => x.id === taskId);
     if (!t) return;
 
-    // RBAC: Only Assigned Member, PM, or DM (in same dept) can move task
+    // RBAC logic...
     const isAssigned = t.assignedTo === currentUser.id;
     const isPM = [ROLES.SA, ROLES.PM].includes(currentUser.role);
     const isDMAssigned = currentUser.role === ROLES.DM && currentUser.dept === t.deptId;
-    
-    if (!isAssigned && !isPM && !isDMAssigned) {
-       alert("Workflow Control: Only the assigned member or your department manager can advance this task.");
-       return;
-    }
-
-    if (!t.assignedTo && !assigneeId && tx.to !== "created") {
-       alert("Task must be assigned to a team member before moving it out of 'Created'.");
-       return;
-    }
+    if (!isAssigned && !isPM && !isDMAssigned) { alert("Workflow Control error"); return; }
+    if (!t.assignedTo && !assigneeId && tx.to !== "created") { alert("Assignment required"); return; }
 
     const newTr = { from: t.stage, to: tx.to, actor: currentUser.id, comment: comment || null, ts: new Date().toISOString(), isRejection: !!tx.isReject };
     await updateDoc(doc(db, "tasks", taskId), { 
@@ -2187,14 +2468,24 @@ export default function App()  {
       assignedTo: assigneeId || t.assignedTo || null, 
       transitions: [...(t.transitions || []), newTr] 
     });
-  }, [currentUser, tasks]);
+    
+    // FIRE AUTOMATION
+    runAutomations("stage_changed", { taskId, triggerValue: tx.to });
+  }, [currentUser, tasks, runAutomations]);
 
-  const updateTask = useCallback(async (id, updates) => await updateDoc(doc(db, "tasks", id), updates), []);
+  const updateTask = useCallback(async (id, updates) => {
+    await updateDoc(doc(db, "tasks", id), updates);
+    // FIRE AUTOMATION (simplified for now, check changed keys)
+    if (updates.stage) runAutomations("stage_changed", { taskId: id, triggerValue: updates.stage });
+    if (updates.assignedTo) runAutomations("assigned_changed", { taskId: id, triggerValue: updates.assignedTo });
+    if (updates.priority) runAutomations("priority_changed", { taskId: id, triggerValue: updates.priority });
+    runAutomations("task_updated", { taskId: id });
+  }, [runAutomations]);
 
   if (!currentUser) return <LoginScreen onLogin={setCurrentUser} />;
 
   const isClient = currentUser.role === ROLES.CL;
-  const ctx = { tasks, setTasks, invoices, setInvoices, clients, setClients, stages, setStages, depts, setDepts, automations, setAutomations, users, setUsers, currentUser, doTransition, updateTask, permissions, setPermissions };
+  const ctx = { tasks, setTasks, invoices, setInvoices, clients, setClients, stages, setStages, depts, setDepts, automations, setAutomations, users, setUsers, currentUser, doTransition, updateTask, permissions, setPermissions, runAutomations, seedDatabase };
 
   return (
     <Ctx.Provider value={ctx}>
