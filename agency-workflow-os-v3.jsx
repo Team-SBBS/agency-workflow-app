@@ -1219,23 +1219,42 @@ function Dashboard({ currentUser, setNav, openTask }) {
   const VIEWS = [["kanban", "⊞ Kanban"], ["list", "☰ List"], ["gantt", "◫ Gantt"], ["calendar", "📅 Calendar"]];
 
   return (
-    <div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
-        <span style={{ fontSize: 14, fontWeight: 800, color: T.text, marginRight: 8 }}>Dashboard Filters</span>
-        {[
-          { val: fStage, set: setFS, opts: [["all", "All Stages"], ...(stages || STAGES_DEFAULT).map(s => [s.id, s.label])] },
-          { val: fDept, set: setFD, opts: [["all", "All Depts"], ...(depts || DEPTS_DEFAULT).map(d => [d.id, `${d.icon} ${d.name}`])] },
-          { val: fPrio, set: setFP, opts: [["all", "All Priorities"], ...Object.entries(PRIORITY_CFG).map(([k, v]) => [k, v.label])] },
-          { val: fClient, set: setFC, opts: [["all", "All Clients"], ...(clients || SEED_CLIENTS).map(c => [c.id, c.name])] },
-        ].map(({ val, set, opts }) => (
-          <select key={opts[0][1]} value={val} onChange={e => set(e.target.value)}
-            style={{ padding: "8px 10px", border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: 12, fontFamily: T.font, color: T.text, background: T.surface, outline: "none" }}>
-            {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
-        ))}
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+      <div style={{ flexShrink: 0 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+          <span style={{ fontSize: 14, fontWeight: 800, color: T.text, marginRight: 8 }}>Dashboard Filters</span>
+          {[
+            { val: fStage, set: setFS, opts: [["all", "All Stages"], ...(stages || STAGES_DEFAULT).map(s => [s.id, s.label])] },
+            { val: fDept, set: setFD, opts: [["all", "All Depts"], ...(depts || DEPTS_DEFAULT).map(d => [d.id, `${d.icon} ${d.name}`])] },
+            { val: fPrio, set: setFP, opts: [["all", "All Priorities"], ...Object.entries(PRIORITY_CFG).map(([k, v]) => [k, v.label])] },
+            { val: fClient, set: setFC, opts: [["all", "All Clients"], ...(clients || SEED_CLIENTS).map(c => [c.id, c.name])] },
+          ].map(({ val, set, opts }) => (
+            <select key={opts[0][1]} value={val} onChange={e => set(e.target.value)}
+              style={{ padding: "8px 10px", border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: 12, fontFamily: T.font, color: T.text, background: T.surface, outline: "none" }}>
+              {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          ))}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 16 }}>
+          {statCards.map((s, i) => <StatCard key={i} {...s} />)}
+        </div>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 24 }}>
-        {statCards.map((s, i) => <StatCard key={i} {...s} />)}
+
+      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 14, fontWeight: 800, color: T.text }}>Task Views</span>
+          <div style={{ display: "flex", gap: 2, background: T.bg, borderRadius: T.radiusSm, border: `1px solid ${T.border}`, padding: 3, marginLeft: 8 }}>
+            {VIEWS.map(([v, l]) => (
+              <button key={v} onClick={() => setView(v)} style={{ padding: "6px 13px", borderRadius: 6, border: "none", cursor: "pointer", background: view === v ? T.surface : "transparent", color: view === v ? T.blue : T.textMid, fontSize: 12, fontWeight: 700, fontFamily: T.font, boxShadow: view === v ? T.shadow : "none", transition: "all .15s" }}>{l}</button>
+            ))}
+          </div>
+        </div>
+        <div style={{ flex: 1, overflow: "auto" }}>
+          {view === "list"     && <ListView     tasks={myTasks} onTaskClick={openTask} stages={stages} depts={depts} />}
+          {view === "kanban"   && <KanbanView   tasks={myTasks} onTaskClick={openTask} stages={stages} depts={depts} />}
+          {view === "gantt"    && <GanttView    tasks={myTasks} />}
+          {view === "calendar" && <CalendarView tasks={myTasks} />}
+        </div>
       </div>
       {priorityTasks.length > 0 && (
         <Card sx={{ padding: "16px 18px", marginBottom: 24 }}>
@@ -1268,10 +1287,12 @@ function Dashboard({ currentUser, setNav, openTask }) {
           ))}
         </div>
       </div>
-      {view === "list"     && <ListView     tasks={myTasks} onTaskClick={openTask} stages={stages} depts={depts} />}
-      {view === "kanban"   && <KanbanView   tasks={myTasks} onTaskClick={openTask} stages={stages} depts={depts} />}
-      {view === "gantt"    && <GanttView    tasks={myTasks} />}
-      {view === "calendar" && <CalendarView tasks={myTasks} />}
+      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+        {view === "list"     && <ListView     tasks={myTasks} onTaskClick={openTask} stages={stages} depts={depts} />}
+        {view === "kanban"   && <KanbanView   tasks={myTasks} onTaskClick={openTask} stages={stages} depts={depts} />}
+        {view === "gantt"    && <GanttView    tasks={myTasks} />}
+        {view === "calendar" && <CalendarView tasks={myTasks} />}
+      </div>
     </div>
   );
 }
@@ -1395,7 +1416,7 @@ function TasksPage({ currentUser, openTask, showCreate, setShowCreate }) {
   const VIEWS = [["list", "☰ List"], ["kanban", "⊞ Kanban"], ["gantt", "◫ Gantt"], ["calendar", "📅 Calendar"]];
 
   return (
-    <div>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         <input value={search} onChange={e => setSrch(e.target.value)} placeholder="🔍  Search tasks…"
           style={{ padding: "8px 12px", border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: 13, fontFamily: T.font, color: T.text, width: 200, outline: "none", background: T.surface }} />
@@ -1419,10 +1440,12 @@ function TasksPage({ currentUser, openTask, showCreate, setShowCreate }) {
         {canCreate && <><Btn onClick={() => setShowCreate(true)}>+ New</Btn><Btn variant="outline" onClick={() => setShowBulk(true)}>Bulk Upload</Btn></>}
       </div>
       <div style={{ fontSize: 12, color: T.textLight, marginBottom: 12 }}>Showing <strong style={{ color: T.text }}>{f.length}</strong> tasks</div>
-      {view === "list"     && <ListView     tasks={f} onTaskClick={openTask} stages={S} depts={D} />}
-      {view === "kanban"   && <KanbanView   tasks={f} onTaskClick={openTask} stages={S} depts={D} />}
-      {view === "gantt"    && <GanttView    tasks={f} />}
-      {view === "calendar" && <CalendarView tasks={f} />}
+      <div style={{ flex: 1, overflow: "auto" }}>
+        {view === "list"     && <ListView     tasks={f} onTaskClick={openTask} stages={S} depts={D} />}
+        {view === "kanban"   && <KanbanView   tasks={f} onTaskClick={openTask} stages={S} depts={D} />}
+        {view === "gantt"    && <GanttView    tasks={f} />}
+        {view === "calendar" && <CalendarView tasks={f} />}
+      </div>
       {showBulk && <BulkUploadModal onClose={() => setShowBulk(false)} />}
       
     </div>
@@ -1560,7 +1583,7 @@ function BillingPage() {
 
 
   return (
-    <div>
+    <div style={{ height: "100%", overflowY: "auto" }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
         <StatCard label="Revenue Collected" value={INR(totalRev)} icon="💰" color={T.success} sub="Paid invoices" />
         <StatCard label="Outstanding" value={INR(outstanding)} icon="📤" color={T.warning} sub="Awaiting payment" />
@@ -1976,7 +1999,7 @@ function TeamPage() {
   const showDept = ![ROLES.SA, ROLES.PM].includes(form.role);
 
   return (
-    <div>
+    <div style={{ height: "100%", overflowY: "auto" }}>
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginBottom: 16 }}>
         <Btn variant="secondary" onClick={() => setShowBulk(true)}>Bulk Upload</Btn>
         <Btn onClick={openInvite}>+ Invite Member</Btn>
@@ -2097,7 +2120,7 @@ function SettingsPage() {
   };
 
   return (
-    <div>
+    <div style={{ height: "100%", overflowY: "auto", paddingRight: 4 }}>
       <div style={{ display: "flex", gap: 6, marginBottom: 24, padding: "0 4px", borderBottom: `1px solid ${T.border}`, overflowX: "auto" }}>
         {TABS.map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)} style={{ padding: "12px 20px", background: "none", border: "none", borderBottom: `2px solid ${tab === id ? T.blue : "transparent"}`, color: tab === id ? T.blue : T.textMid, fontSize: 13, fontWeight: tab === id ? 800 : 600, cursor: "pointer", whiteSpace: "nowrap", fontFamily: T.font }}>{label}</button>
@@ -2550,13 +2573,13 @@ export default function App()  {
       `}</style>
       <div style={{ display: "flex", minHeight: "100vh" }}>
         {!isClient && <Sidebar nav={nav} setNav={setNav} currentUser={currentUser} onLogout={() => { localStorage.removeItem("wf_user"); setCurrentUser(null); setNav("dashboard"); }} />}
-        <div style={{ flex: 1, marginLeft: isClient ? 0 : 216, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+        <div style={{ flex: 1, marginLeft: isClient ? 0 : 216, display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
           <TopBar title={PAGE_TITLES[nav] || "Dashboard"} actions={
             <div style={{ display: "flex", gap: 8 }}>
               {[ROLES.SA, ROLES.PM, ROLES.DM].includes(currentUser.role) && <Btn size="sm" onClick={() => setShowCreate(true)}>+ New Task</Btn>}
             </div>
           } />
-          <main style={{ flex: 1, padding: 24, overflow: "auto" }}>
+          <main style={{ flex: 1, padding: "20px 24px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             {nav === "dashboard" && <Dashboard currentUser={currentUser} setNav={setNav} openTask={setSelectedTask} />}
             {nav === "tasks"     && <TasksPage currentUser={currentUser} openTask={setSelectedTask} showCreate={showCreate} setShowCreate={setShowCreate} />}
             {nav === "tasks" && showCreate && <CreateTaskModal onClose={() => setShowCreate(false)} />}
