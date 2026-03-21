@@ -2403,6 +2403,9 @@ export default function App() {
   const [showCreate, setShowCreate] = useState(false);
   const [prefilledClient, setPrefilledClient] = useState("");
   const [loading, setLoading] = useState(true);
+  const [dialog, setDialog] = useState(null);
+  const openDialog = (type, title, msg, onConfirm, placeholder = "") => setDialog({ type, title, msg, onConfirm, placeholder });
+
 
   // REAL-TIME CLOUD SYNC
   useEffect(() => {
@@ -2601,5 +2604,3 @@ export default function App() {
     </Ctx.Provider>
   );
 }
-const [dialog, setDialog] = useState(null);
-const openDialog = (type, title, msg, onConfirm, placeholder = "") => setDialog({ type, title, msg, onConfirm, placeholder });
