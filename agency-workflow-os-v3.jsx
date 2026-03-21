@@ -412,7 +412,7 @@ function LoginScreen({ onLogin }) {
       const u = combined.find(u => u.email?.trim().toLowerCase() === email.trim().toLowerCase() && u.password === password);
 
       if (u) {
-        localStorage.setItem("wf_user", JSON.stringify(u));
+        // App observer handles user fetch
         onLogin(u);
       } else {
         setError("Invalid email or password. Please check your credentials.");
@@ -2389,7 +2389,7 @@ function SettingsPage() {
 }
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState(() => { const saved = localStorage.getItem("wf_user"); return saved ? JSON.parse(saved) : null; });
+  const [currentUser, setCurrentUser] = useState(null);
   const [users, setUsers] = useState([]);
   const [nav, setNav] = useState("dashboard");
   const [tasks, setTasks] = useState([]);
@@ -2562,7 +2562,7 @@ export default function App() {
         button{font-family:${T.font};}
       `}</style>
       <div style={{ display: "flex", minHeight: "100vh" }}>
-        {!isClient && <Sidebar nav={nav} setNav={setNav} currentUser={currentUser} onLogout={() => { localStorage.removeItem("wf_user"); setCurrentUser(null); setNav("dashboard"); }} />}
+        {!isClient && <Sidebar nav={nav} setNav={setNav} currentUser={currentUser} onLogout={async () => { await auth.signOut(); setCurrentUser(null); setNav("dashboard"); }} />}
         <div style={{ flex: 1, marginLeft: isClient ? 0 : 216, display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
           <TopBar title={PAGE_TITLES[nav] || "Dashboard"} actions={
             <div style={{ display: "flex", gap: 8 }}>
