@@ -1220,7 +1220,7 @@ function Dashboard({ currentUser, setNav, openTask }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-      <div style={{ flexShrink: 0 }}>
+      <div style={{ flexShrink: 0, overflowY: "auto", maxHeight: "40vh", paddingBottom: 10 }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
           <span style={{ fontSize: 14, fontWeight: 800, color: T.text, marginRight: 8 }}>Dashboard Filters</span>
           {[
@@ -1238,9 +1238,32 @@ function Dashboard({ currentUser, setNav, openTask }) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 16 }}>
           {statCards.map((s, i) => <StatCard key={i} {...s} />)}
         </div>
+        {priorityTasks.length > 0 && (
+          <Card sx={{ padding: "16px 18px", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <span style={{ fontSize: 14, fontWeight: 800, color: T.text }}>⚡ Priority Actions</span>
+              <button onClick={() => setNav("tasks")} style={{ fontSize: 12, color: T.blue, background: "none", border: "none", cursor: "pointer", fontFamily: T.font, fontWeight: 700 }}>View all →</button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 8 }}>
+              {priorityTasks.map(t => (
+                <div key={t.id} onClick={() => openTask(t.id)}
+                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: T.bg, borderRadius: T.radiusSm, cursor: "pointer", border: `1px solid ${T.border}`, transition: "all .15s" }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = T.blue}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: PRIORITY_CFG[t.priority].color, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</div>
+                    <div style={{ fontSize: 10, color: T.textLight }}>{getClient(t.clientId)?.name}</div>
+                  </div>
+                  <Badge stage={t.stage} stages={stages} />
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: 14, paddingTop: 6 }}>
         <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 14, fontWeight: 800, color: T.text }}>Task Views</span>
           <div style={{ display: "flex", gap: 2, background: T.bg, borderRadius: T.radiusSm, border: `1px solid ${T.border}`, padding: 3, marginLeft: 8 }}>
@@ -1255,43 +1278,6 @@ function Dashboard({ currentUser, setNav, openTask }) {
           {view === "gantt"    && <GanttView    tasks={myTasks} />}
           {view === "calendar" && <CalendarView tasks={myTasks} />}
         </div>
-      </div>
-      {priorityTasks.length > 0 && (
-        <Card sx={{ padding: "16px 18px", marginBottom: 24 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <span style={{ fontSize: 14, fontWeight: 800, color: T.text }}>⚡ Priority Actions</span>
-            <button onClick={() => setNav("tasks")} style={{ fontSize: 12, color: T.blue, background: "none", border: "none", cursor: "pointer", fontFamily: T.font, fontWeight: 700 }}>View all →</button>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 8 }}>
-            {priorityTasks.map(t => (
-              <div key={t.id} onClick={() => openTask(t.id)}
-                style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: T.bg, borderRadius: T.radiusSm, cursor: "pointer", border: `1px solid ${T.border}`, transition: "all .15s" }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = T.blue}
-                onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
-                <div style={{ width: 8, height: 8, borderRadius: "50%", background: PRIORITY_CFG[t.priority].color, flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</div>
-                  <div style={{ fontSize: 10, color: T.textLight }}>{getClient(t.clientId)?.name}</div>
-                </div>
-                <Badge stage={t.stage} stages={stages} />
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-        <span style={{ fontSize: 14, fontWeight: 800, color: T.text }}>Task Views</span>
-        <div style={{ display: "flex", gap: 2, background: T.bg, borderRadius: T.radiusSm, border: `1px solid ${T.border}`, padding: 3, marginLeft: 8 }}>
-          {VIEWS.map(([v, l]) => (
-            <button key={v} onClick={() => setView(v)} style={{ padding: "6px 13px", borderRadius: 6, border: "none", cursor: "pointer", background: view === v ? T.surface : "transparent", color: view === v ? T.blue : T.textMid, fontSize: 12, fontWeight: 700, fontFamily: T.font, boxShadow: view === v ? T.shadow : "none", transition: "all .15s" }}>{l}</button>
-          ))}
-        </div>
-      </div>
-      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-        {view === "list"     && <ListView     tasks={myTasks} onTaskClick={openTask} stages={stages} depts={depts} />}
-        {view === "kanban"   && <KanbanView   tasks={myTasks} onTaskClick={openTask} stages={stages} depts={depts} />}
-        {view === "gantt"    && <GanttView    tasks={myTasks} />}
-        {view === "calendar" && <CalendarView tasks={myTasks} />}
       </div>
     </div>
   );
