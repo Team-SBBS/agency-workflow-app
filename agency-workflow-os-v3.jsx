@@ -20,83 +20,83 @@ const db = getFirestore(app);
 // DESIGN TOKENS
 // ═══════════════════════════════════════════════════════════════════════
 const T = {
-  bg:"#F0F2F7", surface:"#FFFFFF", surfaceElev:"#FAFBFD",
-  border:"#E4E8F0", borderDark:"#C9D0DE",
-  navy:"#0D1B3E", blue:"#1D4ED8", blueHov:"#1E40AF",
-  blueLight:"#EFF6FF", blueMid:"#DBEAFE",
-  text:"#0D1B3E", textMid:"#4B5675", textLight:"#8B94B0",
-  success:"#059669", successBg:"#ECFDF5", successBorder:"#A7F3D0",
-  danger:"#DC2626", dangerBg:"#FEF2F2", dangerBorder:"#FECACA",
-  warning:"#D97706", warningBg:"#FFFBEB", warningBorder:"#FDE68A",
-  purple:"#7C3AED", purpleBg:"#F5F3FF",
-  sidebar:"#0D1B3E", sidebarBorder:"rgba(255,255,255,0.08)",
-  radius:"10px", radiusSm:"7px", radiusLg:"14px",
-  shadow:"0 1px 4px rgba(13,27,62,0.07),0 1px 2px rgba(13,27,62,0.04)",
-  shadowMd:"0 4px 20px rgba(13,27,62,0.10)",
-  shadowLg:"0 16px 48px rgba(13,27,62,0.18)",
-  font:"'Outfit','Nunito',system-ui,sans-serif",
-  fontMono:"'JetBrains Mono','Fira Code',monospace",
+  bg: "#F0F2F7", surface: "#FFFFFF", surfaceElev: "#FAFBFD",
+  border: "#E4E8F0", borderDark: "#C9D0DE",
+  navy: "#0D1B3E", blue: "#1D4ED8", blueHov: "#1E40AF",
+  blueLight: "#EFF6FF", blueMid: "#DBEAFE",
+  text: "#0D1B3E", textMid: "#4B5675", textLight: "#8B94B0",
+  success: "#059669", successBg: "#ECFDF5", successBorder: "#A7F3D0",
+  danger: "#DC2626", dangerBg: "#FEF2F2", dangerBorder: "#FECACA",
+  warning: "#D97706", warningBg: "#FFFBEB", warningBorder: "#FDE68A",
+  purple: "#7C3AED", purpleBg: "#F5F3FF",
+  sidebar: "#0D1B3E", sidebarBorder: "rgba(255,255,255,0.08)",
+  radius: "10px", radiusSm: "7px", radiusLg: "14px",
+  shadow: "0 1px 4px rgba(13,27,62,0.07),0 1px 2px rgba(13,27,62,0.04)",
+  shadowMd: "0 4px 20px rgba(13,27,62,0.10)",
+  shadowLg: "0 16px 48px rgba(13,27,62,0.18)",
+  font: "'Outfit','Nunito',system-ui,sans-serif",
+  fontMono: "'JetBrains Mono','Fira Code',monospace",
 };
 
 // ═══════════════════════════════════════════════════════════════════════
 // CONSTANTS
 // ═══════════════════════════════════════════════════════════════════════
-const INR = (n) => `₹${Number(n||0).toLocaleString("en-IN")}`;
-const ROLES = { SA:"super_admin", PM:"project_manager", DM:"dept_manager", TM:"team_member", CL:"client" };
-const ROLE_LABELS = { super_admin:"Super Admin", project_manager:"Project Manager", dept_manager:"Dept. Manager", team_member:"Team Member", client:"Client" };
+const INR = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
+const ROLES = { SA: "super_admin", PM: "project_manager", DM: "dept_manager", TM: "team_member", CL: "client" };
+const ROLE_LABELS = { super_admin: "Super Admin", project_manager: "Project Manager", dept_manager: "Dept. Manager", team_member: "Team Member", client: "Client" };
 
 const STAGES_DEFAULT = [
-  { id:"created",       label:"Created",        color:"#64748B", bg:"#F1F5F9", step:1, terminal:false, isStart:true },
-  { id:"assigned",      label:"Assigned",       color:"#2563EB", bg:"#EFF6FF", step:2, terminal:false },
-  { id:"in_progress",   label:"In Progress",    color:"#D97706", bg:"#FFFBEB", step:3, terminal:false },
-  { id:"submitted",     label:"Under Review",   color:"#7C3AED", bg:"#F5F3FF", step:4, terminal:false },
-  { id:"dept_approved", label:"Dept. Approved", color:"#0891B2", bg:"#ECFEFF", step:5, terminal:false },
-  { id:"client_review", label:"Client Review",  color:"#EA580C", bg:"#FFF7ED", step:6, terminal:false },
-  { id:"on_hold",       label:"On Hold",        color:"#6B7280", bg:"#F3F4F6", step:7, terminal:false },
-  { id:"completed",     label:"Completed",      color:"#059669", bg:"#ECFDF5", step:8, terminal:true  },
+  { id: "created", label: "Created", color: "#64748B", bg: "#F1F5F9", step: 1, terminal: false, isStart: true },
+  { id: "assigned", label: "Assigned", color: "#2563EB", bg: "#EFF6FF", step: 2, terminal: false },
+  { id: "in_progress", label: "In Progress", color: "#D97706", bg: "#FFFBEB", step: 3, terminal: false },
+  { id: "submitted", label: "Under Review", color: "#7C3AED", bg: "#F5F3FF", step: 4, terminal: false },
+  { id: "dept_approved", label: "Dept. Approved", color: "#0891B2", bg: "#ECFEFF", step: 5, terminal: false },
+  { id: "client_review", label: "Client Review", color: "#EA580C", bg: "#FFF7ED", step: 6, terminal: false },
+  { id: "on_hold", label: "On Hold", color: "#6B7280", bg: "#F3F4F6", step: 7, terminal: false },
+  { id: "completed", label: "Completed", color: "#059669", bg: "#ECFDF5", step: 8, terminal: true },
 ];
 
 const TRANSITIONS_DEFAULT = {
-  on_hold: [{ action:"resume", label:"Resume Task", to:"in_progress", roles:[ROLES.DM,ROLES.PM,ROLES.SA] }],
-  created:       [{ action:"assign",         label:"Assign to Team",     to:"assigned",      roles:[ROLES.DM,ROLES.SA], needsComment:false, isReject:false, needsAssignee:true }],
-  assigned:      [{ action:"start",          label:"Start Work",         to:"in_progress",   roles:[ROLES.TM,ROLES.SA], needsComment:false, isReject:false }],
-  in_progress:   [{ action:"submit",         label:"Submit for Review",  to:"submitted",     roles:[ROLES.TM,ROLES.SA], needsComment:false, isReject:false }, { action:"hold_tm", label:"Put on Hold", to:"on_hold", roles:[ROLES.TM,ROLES.SA], needsComment:true }],
-  submitted:     [
-    { action:"approve_dept", label:"Approve & Escalate", to:"dept_approved", roles:[ROLES.DM,ROLES.SA], needsComment:false, isReject:false },
-    { action:"reject_dept",  label:"Request Revision",   to:"in_progress",   roles:[ROLES.DM,ROLES.SA], needsComment:true,  isReject:true  },
+  on_hold: [{ action: "resume", label: "Resume Task", to: "in_progress", roles: [ROLES.DM, ROLES.PM, ROLES.SA] }],
+  created: [{ action: "assign", label: "Assign to Team", to: "assigned", roles: [ROLES.DM, ROLES.SA], needsComment: false, isReject: false, needsAssignee: true }],
+  assigned: [{ action: "start", label: "Start Work", to: "in_progress", roles: [ROLES.TM, ROLES.SA], needsComment: false, isReject: false }],
+  in_progress: [{ action: "submit", label: "Submit for Review", to: "submitted", roles: [ROLES.TM, ROLES.SA], needsComment: false, isReject: false }, { action: "hold_tm", label: "Put on Hold", to: "on_hold", roles: [ROLES.TM, ROLES.SA], needsComment: true }],
+  submitted: [
+    { action: "approve_dept", label: "Approve & Escalate", to: "dept_approved", roles: [ROLES.DM, ROLES.SA], needsComment: false, isReject: false },
+    { action: "reject_dept", label: "Request Revision", to: "in_progress", roles: [ROLES.DM, ROLES.SA], needsComment: true, isReject: true },
   ],
-  dept_approved: [{ action:"send_client",    label:"Send to Client",     to:"client_review", roles:[ROLES.PM,ROLES.SA], needsComment:false, isReject:false }],
+  dept_approved: [{ action: "send_client", label: "Send to Client", to: "client_review", roles: [ROLES.PM, ROLES.SA], needsComment: false, isReject: false }],
   client_review: [
-    { action:"approve_client", label:"Approve & Complete", to:"completed",     roles:[ROLES.CL,ROLES.PM,ROLES.SA], needsComment:false, isReject:false },
-    { action:"reject_client",  label:"Request Changes",    to:"dept_approved", roles:[ROLES.CL,ROLES.PM,ROLES.SA], needsComment:true,  isReject:true  },
-    { action:"hold", label:"Put on Hold", to:"on_hold", roles:[ROLES.DM,ROLES.PM,ROLES.SA], needsComment:true, isReject:false },
+    { action: "approve_client", label: "Approve & Complete", to: "completed", roles: [ROLES.CL, ROLES.PM, ROLES.SA], needsComment: false, isReject: false },
+    { action: "reject_client", label: "Request Changes", to: "dept_approved", roles: [ROLES.CL, ROLES.PM, ROLES.SA], needsComment: true, isReject: true },
+    { action: "hold", label: "Put on Hold", to: "on_hold", roles: [ROLES.DM, ROLES.PM, ROLES.SA], needsComment: true, isReject: false },
   ],
   completed: [],
 };
 
 const PRIORITY_CFG = {
-  critical:{ label:"Critical", color:"#DC2626", bg:"#FEF2F2" },
-  high:    { label:"High",     color:"#EA580C", bg:"#FFF7ED" },
-  medium:  { label:"Medium",   color:"#D97706", bg:"#FFFBEB" },
-  low:     { label:"Low",      color:"#059669", bg:"#ECFDF5" },
+  critical: { label: "Critical", color: "#DC2626", bg: "#FEF2F2" },
+  high: { label: "High", color: "#EA580C", bg: "#FFF7ED" },
+  medium: { label: "Medium", color: "#D97706", bg: "#FFFBEB" },
+  low: { label: "Low", color: "#059669", bg: "#ECFDF5" },
 };
 
 const BILLING_CFG = {
-  retainer: { label:"Retainer",  color:"#1D4ED8" },
-  one_time: { label:"One-Time",  color:"#7C3AED" },
-  internal: { label:"Internal",  color:"#6B7280" },
+  retainer: { label: "Retainer", color: "#1D4ED8" },
+  one_time: { label: "One-Time", color: "#7C3AED" },
+  internal: { label: "Internal", color: "#6B7280" },
 };
 
 // ── DEPARTMENTS (now includes Sales & Customer Support) ──────────
 const DEPTS_DEFAULT = [
-  { id:"d1", name:"Design",            icon:"🎨", color:"#EC4899" },
-  { id:"d2", name:"Video Editing",     icon:"🎬", color:"#F97316" },
-  { id:"d3", name:"SEO",               icon:"🔍", color:"#06B6D4" },
-  { id:"d4", name:"Web Dev",           icon:"💻", color:"#8B5CF6" },
-  { id:"d5", name:"App Dev",           icon:"📱", color:"#3B82F6" },
-  { id:"d6", name:"Social Media",      icon:"📣", color:"#F59E0B" },
-  { id:"d7", name:"Sales",             icon:"💼", color:"#10B981" },
-  { id:"d8", name:"Customer Support",  icon:"🎧", color:"#EF4444" },
+  { id: "d1", name: "Design", icon: "🎨", color: "#EC4899" },
+  { id: "d2", name: "Video Editing", icon: "🎬", color: "#F97316" },
+  { id: "d3", name: "SEO", icon: "🔍", color: "#06B6D4" },
+  { id: "d4", name: "Web Dev", icon: "💻", color: "#8B5CF6" },
+  { id: "d5", name: "App Dev", icon: "📱", color: "#3B82F6" },
+  { id: "d6", name: "Social Media", icon: "📣", color: "#F59E0B" },
+  { id: "d7", name: "Sales", icon: "💼", color: "#10B981" },
+  { id: "d8", name: "Customer Support", icon: "🎧", color: "#EF4444" },
 ];
 
 const AUTOMATION_TRIGGERS = [
@@ -126,39 +126,39 @@ const AUTOMATION_ACTIONS = [
 
 // ── SEED DATA ────────────────────────────────────────────────────
 const SEED_USERS = [
-  { id:"admin-sbbs", name:"Master Admin", role:ROLES.SA, dept:null, av:"SA", color:"#1D4ED8", email:"team@sbbs.co.in", password:"Sbbs@123" },
+  { id: "admin-sbbs", name: "Master Admin", role: ROLES.SA, dept: null, av: "SA", color: "#1D4ED8", email: "team@sbbs.co.in", password: "Sbbs@123" },
 ];
 
 const SEED_CLIENTS = [];
 
 const n0 = new Date();
-const dA = (d) => new Date(n0 - d*86400000).toISOString();
-const dF = (d) => new Date(n0.getTime()+d*86400000).toISOString().slice(0,10);
+const dA = (d) => new Date(n0 - d * 86400000).toISOString();
+const dF = (d) => new Date(n0.getTime() + d * 86400000).toISOString().slice(0, 10);
 
 const SEED_TASKS = [];
 
 const SEED_INVOICES = [];
 
 const SEED_AUTOMATIONS = [
-  { 
-    id: "a1", 
-    name: "Auto-assign on Design Stage", 
-    trigger: "stage_changed", 
-    triggerValue: "design", 
+  {
+    id: "a1",
+    name: "Auto-assign on Design Stage",
+    trigger: "stage_changed",
+    triggerValue: "design",
     conditions: [],
     conditionLogic: "AND",
     actions: [{ type: "assign_to", value: "admin-sbbs" }],
-    active: true 
+    active: true
   },
-  { 
-    id: "a2", 
-    name: "Flag Critical Tasks", 
-    trigger: "priority_changed", 
-    triggerValue: "critical", 
+  {
+    id: "a2",
+    name: "Flag Critical Tasks",
+    trigger: "priority_changed",
+    triggerValue: "critical",
     conditions: [],
     conditionLogic: "AND",
     actions: [{ type: "add_comment", value: "System: This critical task requires immediate attention." }],
-    active: true 
+    active: true
   }
 ];
 
@@ -171,12 +171,12 @@ const useApp = () => useContext(Ctx);
 // ═══════════════════════════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════════════════════════
-const getUser   = (id, currentUsers=null) => (currentUsers || SEED_USERS).find(u => u.id === id);
-const getDept   = (id, depts) => (depts || DEPTS_DEFAULT).find(d => d.id === id);
-const getClient = (id, cls)  => (cls || SEED_CLIENTS).find(c => c.id === id);
-const isOverdue = (t)        => t.stage !== "completed" && t.dueDate && new Date(t.dueDate) < new Date();
-const relTime   = (ts)       => ts ? new Date(ts).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
-const uuid      = ()         => "x" + Math.random().toString(36).slice(2, 10);
+const getUser = (id, currentUsers = null) => (currentUsers || SEED_USERS).find(u => u.id === id);
+const getDept = (id, depts) => (depts || DEPTS_DEFAULT).find(d => d.id === id);
+const getClient = (id, cls) => (cls || SEED_CLIENTS).find(c => c.id === id);
+const isOverdue = (t) => t.stage !== "completed" && t.dueDate && new Date(t.dueDate) < new Date();
+const relTime = (ts) => ts ? new Date(ts).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
+const uuid = () => "x" + Math.random().toString(36).slice(2, 10);
 
 // ═══════════════════════════════════════════════════════════════════════
 // PRIMITIVE UI COMPONENTS
@@ -211,12 +211,12 @@ function PBadge({ priority }) {
 function Btn({ children, onClick, variant = "primary", size = "md", disabled = false, full = false, sx = {} }) {
   const [hov, setHov] = useState(false);
   const base = {
-    primary:   { bg: hov ? "#1E40AF" : T.blue,    color: "#ffffff", border: "none",                          shadow: "0 1px 3px rgba(29,78,216,.3)" },
-    secondary: { bg: hov ? "#E8ECF5" : T.surface,  color: T.textMid, border: `1px solid ${T.border}`,        shadow: "none" },
-    danger:    { bg: hov ? "#B91C1C" : T.danger,   color: "#ffffff", border: "none",                          shadow: "none" },
-    ghost:     { bg: hov ? T.border  : "transparent",color: T.textMid,border: "none",                         shadow: "none" },
-    success:   { bg: hov ? "#047857" : T.success,  color: "#ffffff", border: "none",                          shadow: "none" },
-    outline:   { bg: "transparent",                color: T.blue,    border: `1.5px solid ${T.blue}`,         shadow: "none" },
+    primary: { bg: hov ? "#1E40AF" : T.blue, color: "#ffffff", border: "none", shadow: "0 1px 3px rgba(29,78,216,.3)" },
+    secondary: { bg: hov ? "#E8ECF5" : T.surface, color: T.textMid, border: `1px solid ${T.border}`, shadow: "none" },
+    danger: { bg: hov ? "#B91C1C" : T.danger, color: "#ffffff", border: "none", shadow: "none" },
+    ghost: { bg: hov ? T.border : "transparent", color: T.textMid, border: "none", shadow: "none" },
+    success: { bg: hov ? "#047857" : T.success, color: "#ffffff", border: "none", shadow: "none" },
+    outline: { bg: "transparent", color: T.blue, border: `1.5px solid ${T.blue}`, shadow: "none" },
   };
   const sz = { sm: { padding: "5px 13px", fontSize: 12 }, md: { padding: "9px 18px", fontSize: 13 }, lg: { padding: "12px 26px", fontSize: 14 } };
   const v = base[variant] || base.primary;
@@ -405,17 +405,17 @@ function LoginScreen({ onLogin }) {
       // Fetch from Firestore
       const snap = await getDocs(collection(db, "users"));
       const allUsers = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-      
+
       // Merge with SEED_USERS in case DB is empty or for initial admin
       const combined = [...SEED_USERS, ...allUsers];
-      
+
       const u = combined.find(u => u.email?.trim().toLowerCase() === email.trim().toLowerCase() && u.password === password);
-      
-      if (u) { 
-        localStorage.setItem("wf_user", JSON.stringify(u)); 
-        onLogin(u); 
-      } else { 
-        setError("Invalid email or password. Please check your credentials."); 
+
+      if (u) {
+        localStorage.setItem("wf_user", JSON.stringify(u));
+        onLogin(u);
+      } else {
+        setError("Invalid email or password. Please check your credentials.");
       }
     } catch (err) {
       console.error(err);
@@ -458,7 +458,7 @@ function LoginScreen({ onLogin }) {
             </div>
             <Btn full onClick={handleLogin} disabled={loading || !email || !password} size="lg" sx={{ marginTop: 4 }}>{loading ? "Signing in…" : "Sign In"}</Btn>
             <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${T.border}` }}>
-              
+
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {DEMOS.map(acc => (
                   <button key={acc.email} onClick={() => { setEmail(acc.email); setPassword(SEED_USERS.find(u => u.email === acc.email)?.password || ""); setError(""); }}
@@ -522,9 +522,9 @@ function CreateTaskModal({ onClose, initialClient = "" }) {
 
   const create = () => {
     if (!ok) return;
-    
+
     const dm = users.find(u => u.role === ROLES.DM && (Array.isArray(u.dept) ? u.dept.includes(f.deptId) : u.dept === f.deptId));
-        const t = {
+    const t = {
       id: uuid(), clientId: f.clientId, deptId: f.deptId, title: f.title, description: f.description,
       stage: "created", priority: f.priority, billingType: f.isBillable ? f.billingType : "internal",
       isBillable: f.isBillable, isInvoiced: false, invoiceId: null, invoiceDate: null, paymentStatus: null,
@@ -590,7 +590,7 @@ function CreateTaskModal({ onClose, initialClient = "" }) {
 // TASK DETAIL MODAL
 // ═══════════════════════════════════════════════════════════════════════
 function TaskDetail({ taskId, onClose }) {
-  const { tasks, stages, depts, clients, users, currentUser, updateTask, doTransition } = useApp();
+  const { openDialog, tasks, stages, depts, clients, users, currentUser, updateTask, doTransition } = useApp();
   const [tab, setTab] = useState("overview");
   const [txnModal, setTxnModal] = useState(null);
   const [logH, setLogH] = useState("");
@@ -621,12 +621,12 @@ function TaskDetail({ taskId, onClose }) {
     <Modal title={task.title} onClose={onClose} width={750}>
       <Pipeline currentStage={task.stage} stages={S} />
       <div style={{ height: 1, background: T.border, margin: "14px 0" }} />
-      
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 16 }}>
-        {[[dept ? `${dept.icon} ${dept.name}` : "—", "Dept", dept?.color || T.textMid], 
-          [PRIORITY_CFG[task.priority]?.label, "Priority", PRIORITY_CFG[task.priority]?.color], 
-          [BILLING_CFG[task.billingType]?.label || "—", "Billing", BILLING_CFG[task.billingType]?.color], 
-          [client?.name || "—", "Client", T.text]].map(([v, l, c]) => (
+        {[[dept ? `${dept.icon} ${dept.name}` : "—", "Dept", dept?.color || T.textMid],
+        [PRIORITY_CFG[task.priority]?.label, "Priority", PRIORITY_CFG[task.priority]?.color],
+        [BILLING_CFG[task.billingType]?.label || "—", "Billing", BILLING_CFG[task.billingType]?.color],
+        [client?.name || "—", "Client", T.text]].map(([v, l, c]) => (
           <div key={l} style={{ background: T.bg, borderRadius: T.radiusSm, padding: "10px 12px" }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: T.textLight, textTransform: "uppercase", marginBottom: 2 }}>{l}</div>
             <div style={{ fontSize: 12, fontWeight: 800, color: c }}>{v}</div>
@@ -636,7 +636,7 @@ function TaskDetail({ taskId, onClose }) {
 
       <div style={{ display: "flex", borderBottom: `1px solid ${T.border}`, marginBottom: 16, gap: 4, overflowX: "auto" }}>
         {TABS.map(([id, lbl]) => (
-          <button key={id} onClick={() => setTab(id)} 
+          <button key={id} onClick={() => setTab(id)}
             style={{ padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: tab === id ? 800 : 500, fontFamily: T.font, color: tab === id ? T.blue : T.textMid, borderBottom: tab === id ? `2px solid ${T.blue}` : "2px solid transparent", marginBottom: -1, whiteSpace: "nowrap" }}>
             {lbl}
           </button>
@@ -654,11 +654,11 @@ function TaskDetail({ taskId, onClose }) {
               </div>
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: T.textLight, textTransform: "uppercase", marginBottom: 8 }}>Schedule</div>
-                <div style={{ fontSize: 12, marginBottom: 2 }}><span style={{color: T.textLight}}>Start:</span> {task.startDate ? relTime(task.startDate) : "—"}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: ov ? T.danger : T.text }}><span style={{color: T.textLight}}>Due:</span> {task.dueDate ? relTime(task.dueDate) : "—"}{ov && <span style={{ color: T.danger, marginLeft: 6 }}>OVERDUE</span>}</div>
+                <div style={{ fontSize: 12, marginBottom: 2 }}><span style={{ color: T.textLight }}>Start:</span> {task.startDate ? relTime(task.startDate) : "—"}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: ov ? T.danger : T.text }}><span style={{ color: T.textLight }}>Due:</span> {task.dueDate ? relTime(task.dueDate) : "—"}{ov && <span style={{ color: T.danger, marginLeft: 6 }}>OVERDUE</span>}</div>
               </div>
             </div>
-            
+
             <div style={{ background: T.bg, borderRadius: T.radiusSm, padding: 16 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: T.textLight, textTransform: "uppercase", marginBottom: 12 }}>Performance & Time</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 14 }}>
@@ -666,7 +666,7 @@ function TaskDetail({ taskId, onClose }) {
                   <div key={l} style={{ textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 900, color: c, fontFamily: T.fontMono }}>{v}</div><div style={{ fontSize: 10, color: T.textLight }}>{l}</div></div>
                 ))}
               </div>
-              <Progress value={(task.actualHours / (task.estimatedHours||1)) * 100} color={task.actualHours > task.estimatedHours ? T.danger : T.blue} />
+              <Progress value={(task.actualHours / (task.estimatedHours || 1)) * 100} color={task.actualHours > task.estimatedHours ? T.danger : T.blue} />
               {task.stage === "in_progress" && (
                 <div style={{ display: "flex", gap: 10, marginTop: 16, alignItems: "center" }}>
                   {!task.timerStart ? (
@@ -680,7 +680,7 @@ function TaskDetail({ taskId, onClose }) {
                   )}
                   <div style={{ width: 1, height: 20, background: T.border }} />
                   <input value={logH} onChange={e => setLogH(e.target.value)} type="number" placeholder="Hrs" style={{ width: 60, padding: 8, borderRadius: 4, border: `1px solid ${T.border}` }} />
-                  <Btn size="sm" variant="ghost" onClick={() => { const h = parseFloat(logH); if(h) { updateTask(task.id, { actualHours: task.actualHours + h }); setLogH(""); } }}>+ Manual</Btn>
+                  <Btn size="sm" variant="ghost" onClick={() => { const h = parseFloat(logH); if (h) { updateTask(task.id, { actualHours: task.actualHours + h }); setLogH(""); } }}>+ Manual</Btn>
                 </div>
               )}
             </div>
@@ -694,19 +694,19 @@ function TaskDetail({ taskId, onClose }) {
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {(task.checklist || []).map((ch, i) => (
                   <div key={i} style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    <input type="checkbox" checked={ch.done} onChange={async() => { const n = [...(task.checklist||[])]; n[i].done = !n[i].done; await updateTask(task.id, { checklist: n }); }} />
-                    <input value={ch.text} onChange={async(e) => { const n = [...(task.checklist||[])]; n[i].text = e.target.value; await updateTask(task.id, { checklist: n }); }} style={{ flex: 1, background: "none", border: "none", fontSize: 13, outline: "none", textDecoration: ch.done ? "line-through" : "none" }} />
-                    <button style={{ background: "none", border: "none", color: T.danger, cursor: "pointer" }} onClick={async() => await updateTask(task.id, { checklist: task.checklist.filter((_, idx) => idx !== i) })}>×</button>
+                    <input type="checkbox" checked={ch.done} onChange={async () => { const n = [...(task.checklist || [])]; n[i].done = !n[i].done; await updateTask(task.id, { checklist: n }); }} />
+                    <input value={ch.text} onChange={async (e) => { const n = [...(task.checklist || [])]; n[i].text = e.target.value; await updateTask(task.id, { checklist: n }); }} style={{ flex: 1, background: "none", border: "none", fontSize: 13, outline: "none", textDecoration: ch.done ? "line-through" : "none" }} />
+                    <button style={{ background: "none", border: "none", color: T.danger, cursor: "pointer" }} onClick={async () => await updateTask(task.id, { checklist: task.checklist.filter((_, idx) => idx !== i) })}>×</button>
                   </div>
                 ))}
-                <input placeholder="+ New checklist item..." style={{ marginTop: 8, padding: 8, fontSize: 12, border: `1px solid ${T.border}`, borderRadius: 4 }} 
-                  onKeyDown={async e => { if(e.key === "Enter" && e.target.value) { await updateTask(task.id, { checklist: [...(task.checklist||[]), { text: e.target.value, done: false }] }); e.target.value = ""; } }} />
+                <input placeholder="+ New checklist item..." style={{ marginTop: 8, padding: 8, fontSize: 12, border: `1px solid ${T.border}`, borderRadius: 4 }}
+                  onKeyDown={async e => { if (e.key === "Enter" && e.target.value) { await updateTask(task.id, { checklist: [...(task.checklist || []), { text: e.target.value, done: false }] }); e.target.value = ""; } }} />
               </div>
             </div>
-            
+
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
               <div style={{ fontSize: 13, fontWeight: 800 }}>Subtasks (Work Units)</div>
-              <Btn size="sm" variant="ghost" onClick={async () => { const t = prompt("Title:"); if(t) await updateTask(task.id, { subtasks: [...(task.subtasks||[]), { id: uuid(), title: t, status: "pending", ts: new Date().toISOString() }] }); }}>+ Add</Btn>
+              <Btn size="sm" variant="ghost" onClick={async () => { const t = prompt("Title:"); if (t) await updateTask(task.id, { subtasks: [...(task.subtasks || []), { id: uuid(), title: t, status: "pending", ts: new Date().toISOString() }] }); }}>+ Add</Btn>
             </div>
             {(task.subtasks || []).map((st, i) => (
               <div key={st.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: 12, background: T.bg, borderRadius: T.radiusSm, border: `1px solid ${T.border}`, marginBottom: 8 }}>
@@ -744,8 +744,8 @@ function TaskDetail({ taskId, onClose }) {
                 );
               })}
             </div>
-            <input placeholder="Add a comment... (Enter to post)" style={{ width: "100%", padding: 12, border: `1px solid ${T.border}`, borderRadius: T.radiusSm }} 
-              onKeyDown={async e => { if(e.key === "Enter" && e.target.value) { await updateTask(task.id, { comments: [...(task.comments||[]), { id: uuid(), text: e.target.value, userId: currentUser.id, ts: new Date().toISOString() }] }); e.target.value = ""; } }} />
+            <input placeholder="Add a comment... (Enter to post)" style={{ width: "100%", padding: 12, border: `1px solid ${T.border}`, borderRadius: T.radiusSm }}
+              onKeyDown={async e => { if (e.key === "Enter" && e.target.value) { await updateTask(task.id, { comments: [...(task.comments || []), { id: uuid(), text: e.target.value, userId: currentUser.id, ts: new Date().toISOString() }] }); e.target.value = ""; } }} />
           </div>
         )}
 
@@ -760,7 +760,7 @@ function TaskDetail({ taskId, onClose }) {
                 {(task.timeLog || []).map((l, i) => (
                   <tr key={i} style={{ borderBottom: `1px solid ${T.border}`, fontSize: 12 }}>
                     <td style={{ padding: 8 }}>{getUser(l.userId, users)?.name.split(" ")[0]}</td>
-                    <td style={{ padding: 8, color: T.textMid }}>{new Date(l.start).toLocaleTimeString()} - {new Date(l.end).toLocaleTimeString()}<br/><small>{new Date(l.start).toLocaleDateString()}</small></td>
+                    <td style={{ padding: 8, color: T.textMid }}>{new Date(l.start).toLocaleTimeString()} - {new Date(l.end).toLocaleTimeString()}<br /><small>{new Date(l.start).toLocaleDateString()}</small></td>
                     <td style={{ padding: 8, textAlign: "right", fontWeight: 700 }}>{Number(l.duration).toFixed(2)}h</td>
                   </tr>
                 ))}
@@ -775,8 +775,8 @@ function TaskDetail({ taskId, onClose }) {
               const actor = getUser(t.actor, users);
               return (
                 <div key={i} style={{ display: "flex", gap: 12, paddingBottom: 16, borderLeft: "2px solid #E2E8F0", marginLeft: 8, paddingLeft: 16, position: "relative" }}>
-                   <div style={{ position: "absolute", left: -6, top: 0, width: 10, height: 10, borderRadius: "50%", background: T.blue }} />
-                   <div>
+                  <div style={{ position: "absolute", left: -6, top: 0, width: 10, height: 10, borderRadius: "50%", background: T.blue }} />
+                  <div>
                     <div style={{ fontSize: 12, fontWeight: 700, display: "flex", gap: 8, alignItems: "center" }}>
                       {actor?.name || "System"} <span style={{ fontWeight: 400, color: T.textLight }}>{relTime(t.ts)}</span>
                     </div>
@@ -784,7 +784,7 @@ function TaskDetail({ taskId, onClose }) {
                       Moved from <Badge stage={t.from} /> to <Badge stage={t.to} />
                     </div>
                     {t.comment && <div style={{ fontSize: 12, color: T.textMid, background: T.bg, padding: 8, marginTop: 8, borderRadius: 4, borderLeft: `3px solid ${T.blue}` }}>{t.comment}</div>}
-                   </div>
+                  </div>
                 </div>
               );
             })}
@@ -793,7 +793,7 @@ function TaskDetail({ taskId, onClose }) {
 
         {tab === "notes" && (
           <div style={{ animation: "mIn .2s ease" }}>
-            <textarea placeholder="Private internal notes..." value={task.notes || ""} onChange={async e => await updateTask(task.id, { notes: e.target.value })} 
+            <textarea placeholder="Private internal notes..." value={task.notes || ""} onChange={async e => await updateTask(task.id, { notes: e.target.value })}
               style={{ width: "100%", height: 300, padding: 16, borderRadius: T.radiusSm, border: `1px solid ${T.border}`, fontSize: 13, lineHeight: 1.6, background: T.surfaceElev }} />
             <div style={{ fontSize: 11, color: T.textLight, marginTop: 8 }}>Changes are saved automatically.</div>
           </div>
@@ -801,9 +801,9 @@ function TaskDetail({ taskId, onClose }) {
 
         {tab === "billing" && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-             {[["Invoiced", task.isInvoiced ? "Yes" : "No"], ["Total Hours", `${Number(task.actualHours).toFixed(2)}h`], ["Rate Lock", "Standard"]].map(([l, v]) => (
-               <Card key={l} sx={{ padding: 12, background: T.bg }}><div style={{ fontSize: 10, fontWeight: 700, color: T.textLight }}>{l}</div><div style={{ fontSize: 15, fontWeight: 800 }}>{v}</div></Card>
-             ))}
+            {[["Invoiced", task.isInvoiced ? "Yes" : "No"], ["Total Hours", `${Number(task.actualHours).toFixed(2)}h`], ["Rate Lock", "Standard"]].map(([l, v]) => (
+              <Card key={l} sx={{ padding: 12, background: T.bg }}><div style={{ fontSize: 10, fontWeight: 700, color: T.textLight }}>{l}</div><div style={{ fontSize: 15, fontWeight: 800 }}>{v}</div></Card>
+            ))}
           </div>
         )}
       </div>
@@ -814,7 +814,7 @@ function TaskDetail({ taskId, onClose }) {
           {available.map(tx => <Btn key={tx.action} variant={tx.isReject ? "danger" : "primary"} size="sm" onClick={() => setTxnModal(tx)}>{tx.label}</Btn>)}
         </div>
       )}
-      
+
       {txnModal && <TxnModal task={task} tx={txnModal} onClose={() => setTxnModal(null)} onConfirm={(c, a) => { doTransition(task.id, txnModal, c, a); setTxnModal(null); onClose(); }} />}
     </Modal>
   );
@@ -832,10 +832,10 @@ function TxnModal({ task, tx, onClose, onConfirm }) {
       <div style={{ background: T.surface, borderRadius: T.radiusLg, width: "100%", maxWidth: 400, padding: 24 }}>
         <div style={{ fontWeight: 800, marginBottom: 8 }}>{tx.label}</div>
         <div style={{ fontSize: 12, color: T.textLight, marginBottom: 16 }}>Confirm stage move to <Badge stage={tx.to} /></div>
-        
+
         {needsAssign && <Sel label="Assign to Member" value={assignee} onChange={setAssignee} options={deptMembers.map(u => ({ value: u.id, label: u.name }))} required />}
         {tx.needsComment && <Inp label="Reason / Feedback" value={comment} onChange={setComment} as="textarea" placeholder="Minimum 10 characters..." required />}
-        
+
         <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
           <Btn variant="secondary" onClick={onClose} full>Cancel</Btn>
           <Btn onClick={() => onConfirm(comment, assignee)} disabled={tx.needsComment && comment.length < 10} full>Confirm</Btn>
@@ -1069,12 +1069,12 @@ function GlobalTimer() {
 
   return (
     <div style={{ position: "fixed", bottom: 20, left: 236, zIndex: 5000 }}>
-      <button 
+      <button
         onClick={() => setShowPopup(!showPopup)}
         style={{ background: T.blue, color: "#fff", padding: "10px 18px", borderRadius: 30, border: "none", boxShadow: T.shadowLg, cursor: "pointer", display: "flex", alignItems: "center", gap: 10, animation: "pulse 2s infinite" }}>
         <span style={{ fontSize: 18 }}>⏱</span>
         <div style={{ textAlign: "left" }}>
-          <div style={{ fontSize: 10, fontWeight: 700, opacity: .8, textTransform: "uppercase" }}>Tracking: {activeTask.title.substring(0,20)}...</div>
+          <div style={{ fontSize: 10, fontWeight: 700, opacity: .8, textTransform: "uppercase" }}>Tracking: {activeTask.title.substring(0, 20)}...</div>
           <div style={{ fontSize: 15, fontWeight: 900, fontFamily: T.fontMono }}>{elapsed}</div>
         </div>
       </button>
@@ -1084,7 +1084,7 @@ function GlobalTimer() {
           <div style={{ fontSize: 11, fontWeight: 800, color: T.textLight, textTransform: "uppercase", marginBottom: 8 }}>Active Timer</div>
           <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 4 }}>{activeTask.title}</div>
           <div style={{ fontSize: 12, color: T.textMid, marginBottom: 16 }}>Started at {new Date(activeTask.timerStart).toLocaleTimeString()}</div>
-          
+
           <div style={{ display: "flex", gap: 8 }}>
             <Btn onClick={stopTimer} sx={{ flex: 1 }}>Stop & Log Time</Btn>
             <Btn variant="secondary" onClick={() => setShowPopup(false)}>Close</Btn>
@@ -1107,12 +1107,12 @@ function Sidebar({ nav, setNav, currentUser, onLogout }) {
   const { tasks } = useApp();
   const badge = (fn) => tasks.filter(fn).length;
   const items = [
-    { id: "dashboard", icon: "▣",  label: "Dashboard" },
-    { id: "tasks",     icon: "☑",  label: "Tasks", badge: badge(t => t.stage !== "completed" && (currentUser.role === ROLES.TM ? t.assignedTo === currentUser.id : currentUser.role === ROLES.DM ? t.deptId === currentUser.dept : true)) },
-    { id: "clients",   icon: "◉",  label: "Clients" },
-    { id: "billing",   icon: "◈",  label: "Billing" },
-    { id: "reports",   icon: "◫",  label: "Reports" },
-    { id: "audit",     icon: "🔒", label: "Audit Log" },
+    { id: "dashboard", icon: "▣", label: "Dashboard" },
+    { id: "tasks", icon: "☑", label: "Tasks", badge: badge(t => t.stage !== "completed" && (currentUser.role === ROLES.TM ? t.assignedTo === currentUser.id : currentUser.role === ROLES.DM ? t.deptId === currentUser.dept : true)) },
+    { id: "clients", icon: "◉", label: "Clients" },
+    { id: "billing", icon: "◈", label: "Billing" },
+    { id: "reports", icon: "◫", label: "Reports" },
+    { id: "audit", icon: "🔒", label: "Audit Log" },
   ];
   if ([ROLES.SA, ROLES.PM].includes(currentUser.role)) items.push({ id: "team", icon: "👤", label: "Team" });
   items.push({ id: "settings", icon: "⚙", label: "Settings" });
@@ -1174,7 +1174,7 @@ function TopBar({ title, actions }) {
 // DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════
 function Dashboard({ currentUser, setNav, openTask }) {
-  const { tasks, stages, clients, depts } = useApp();
+  const { openDialog, tasks, stages, clients, depts } = useApp();
   const [view, setView] = useState("kanban");
   const [fStage, setFS] = useState("all");
   const [fDept, setFD] = useState("all");
@@ -1273,9 +1273,9 @@ function Dashboard({ currentUser, setNav, openTask }) {
           </div>
         </div>
         <div style={{ flex: 1, overflow: "auto" }}>
-          {view === "list"     && <ListView     tasks={myTasks} onTaskClick={openTask} stages={stages} depts={depts} />}
-          {view === "kanban"   && <KanbanView   tasks={myTasks} onTaskClick={openTask} stages={stages} depts={depts} />}
-          {view === "gantt"    && <GanttView    tasks={myTasks} />}
+          {view === "list" && <ListView tasks={myTasks} onTaskClick={openTask} stages={stages} depts={depts} />}
+          {view === "kanban" && <KanbanView tasks={myTasks} onTaskClick={openTask} stages={stages} depts={depts} />}
+          {view === "gantt" && <GanttView tasks={myTasks} />}
           {view === "calendar" && <CalendarView tasks={myTasks} />}
         </div>
       </div>
@@ -1303,12 +1303,12 @@ function BulkUploadModal({ onClose }) {
       const lines = csvText.split("\n").map(l => l.trim()).filter(Boolean);
       lines.slice(1).forEach(l => {
         const [title, clientId, deptId, priority] = l.split(",");
-        if (title) toAdd.push({ title, clientId: clientId||(clients||SEED_CLIENTS)[0].id, deptId: deptId||(depts||DEPTS_DEFAULT)[0].id, priority: priority||"medium" });
+        if (title) toAdd.push({ title, clientId: clientId || (clients || SEED_CLIENTS)[0].id, deptId: deptId || (depts || DEPTS_DEFAULT)[0].id, priority: priority || "medium" });
       });
     } else {
       toAdd = rows.filter(r => r.title && r.clientId && r.deptId);
     }
-    
+
     if (toAdd.length === 0) return;
 
     const newTasks = toAdd.map(r => ({
@@ -1320,7 +1320,7 @@ function BulkUploadModal({ onClose }) {
       createdAt: new Date().toISOString(), tags: [],
       transitions: [{ from: null, to: "created", actor: currentUser.id, comment: null, ts: new Date().toISOString() }],
     }));
-    
+
     newTasks.forEach(async t => await setDoc(doc(db, "tasks", t.id), t));
     onClose();
   };
@@ -1331,7 +1331,7 @@ function BulkUploadModal({ onClose }) {
         <Btn variant={!csvMode ? "primary" : "secondary"} onClick={() => setCsvMode(false)}>Row Entry</Btn>
         <Btn variant={csvMode ? "primary" : "secondary"} onClick={() => setCsvMode(true)}>CSV Import</Btn>
       </div>
-      
+
       {!csvMode ? (
         <div>
           <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 16 }}>
@@ -1347,10 +1347,10 @@ function BulkUploadModal({ onClose }) {
             <tbody>
               {rows.map((r, i) => (
                 <tr key={i}>
-                  <td style={{ padding: "4px 8px" }}><input value={r.title} onChange={e => updateRow(i, "title", e.target.value)} style={{ width: "100%", padding: 6, fontSize: 12 }} placeholder="Task title"/></td>
-                  <td style={{ padding: "4px 8px" }}><select value={r.clientId} onChange={e => updateRow(i, "clientId", e.target.value)} style={{ width: "100%", padding: 6, fontSize: 12 }}><option value="">Select</option>{(clients||SEED_CLIENTS).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></td>
-                  <td style={{ padding: "4px 8px" }}><select value={r.deptId} onChange={e => updateRow(i, "deptId", e.target.value)} style={{ width: "100%", padding: 6, fontSize: 12 }}><option value="">Select</option>{(depts||DEPTS_DEFAULT).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></td>
-                  <td style={{ padding: "4px 8px" }}><select value={r.priority} onChange={e => updateRow(i, "priority", e.target.value)} style={{ width: "100%", padding: 6, fontSize: 12 }}>{Object.entries(PRIORITY_CFG).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}</select></td>
+                  <td style={{ padding: "4px 8px" }}><input value={r.title} onChange={e => updateRow(i, "title", e.target.value)} style={{ width: "100%", padding: 6, fontSize: 12 }} placeholder="Task title" /></td>
+                  <td style={{ padding: "4px 8px" }}><select value={r.clientId} onChange={e => updateRow(i, "clientId", e.target.value)} style={{ width: "100%", padding: 6, fontSize: 12 }}><option value="">Select</option>{(clients || SEED_CLIENTS).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></td>
+                  <td style={{ padding: "4px 8px" }}><select value={r.deptId} onChange={e => updateRow(i, "deptId", e.target.value)} style={{ width: "100%", padding: 6, fontSize: 12 }}><option value="">Select</option>{(depts || DEPTS_DEFAULT).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></td>
+                  <td style={{ padding: "4px 8px" }}><select value={r.priority} onChange={e => updateRow(i, "priority", e.target.value)} style={{ width: "100%", padding: 6, fontSize: 12 }}>{Object.entries(PRIORITY_CFG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select></td>
                   <td style={{ padding: "4px 8px" }}><button onClick={() => removeRow(i)} style={{ color: T.danger }}>×</button></td>
                 </tr>
               ))}
@@ -1364,7 +1364,7 @@ function BulkUploadModal({ onClose }) {
           <Inp as="textarea" rows={10} value={csvText} onChange={setCsvText} placeholder="Title,ClientID,DeptID,Priority\nLogo,c1,d1,high" />
         </div>
       )}
-      
+
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 20 }}>
         <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
         <Btn onClick={save}>Bulk Save</Btn>
@@ -1377,7 +1377,7 @@ function BulkUploadModal({ onClose }) {
 // TASKS PAGE
 // ═══════════════════════════════════════════════════════════════════════
 function TasksPage({ currentUser, openTask, showCreate, setShowCreate }) {
-  const { tasks, stages, clients, depts } = useApp();
+  const { openDialog, tasks, stages, clients, depts } = useApp();
   const [fStage, setFS] = useState("all");
   const [fDept, setFD] = useState("all");
   const [fPrio, setFP] = useState("all");
@@ -1427,13 +1427,13 @@ function TasksPage({ currentUser, openTask, showCreate, setShowCreate }) {
       </div>
       <div style={{ fontSize: 12, color: T.textLight, marginBottom: 12 }}>Showing <strong style={{ color: T.text }}>{f.length}</strong> tasks</div>
       <div style={{ flex: 1, overflow: "auto" }}>
-        {view === "list"     && <ListView     tasks={f} onTaskClick={openTask} stages={S} depts={D} />}
-        {view === "kanban"   && <KanbanView   tasks={f} onTaskClick={openTask} stages={S} depts={D} />}
-        {view === "gantt"    && <GanttView    tasks={f} />}
+        {view === "list" && <ListView tasks={f} onTaskClick={openTask} stages={S} depts={D} />}
+        {view === "kanban" && <KanbanView tasks={f} onTaskClick={openTask} stages={S} depts={D} />}
+        {view === "gantt" && <GanttView tasks={f} />}
         {view === "calendar" && <CalendarView tasks={f} />}
       </div>
       {showBulk && <BulkUploadModal onClose={() => setShowBulk(false)} />}
-      
+
     </div>
   );
 }
@@ -1442,7 +1442,7 @@ function TasksPage({ currentUser, openTask, showCreate, setShowCreate }) {
 // CLIENTS PAGE
 // ═══════════════════════════════════════════════════════════════════════
 function ClientsPage({ openTask, openCreate }) {
-  const { tasks, clients, setClients, depts } = useApp();
+  const { openDialog, tasks, clients, setClients, depts } = useApp();
   const [sel, setSel] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [nf, setNF] = useState({ name: "", email: "", billing: "retainer", retainer: "", industry: "", gst: "" });
@@ -1525,7 +1525,7 @@ function ClientsPage({ openTask, openCreate }) {
             <Sel label="Billing Type" value={nf.billing} onChange={v => setNF(p => ({ ...p, billing: v }))} required options={Object.entries(BILLING_CFG).map(([k, v]) => ({ value: k, label: v.label }))} />
             <Inp label="Industry" value={nf.industry} onChange={v => setNF(p => ({ ...p, industry: v }))} />
             <Inp label="Monthly Retainer (₹)" value={nf.retainer} onChange={v => setNF(p => ({ ...p, retainer: v }))} type="number" />
-            
+
           </div>
           <Inp label="GST Number" value={nf.gst} onChange={v => setNF(p => ({ ...p, gst: v }))} placeholder="27AABCT1234A1Z5" />
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -1543,16 +1543,16 @@ function ClientsPage({ openTask, openCreate }) {
 // ═══════════════════════════════════════════════════════════════════════
 
 function BillingPage() {
-  const { tasks, setTasks, invoices, setInvoices, clients, depts } = useApp();
+  const { openDialog, tasks, setTasks, invoices, setInvoices, clients, depts } = useApp();
   const [tab, setTab] = useState("overview");
   const D = depts || DEPTS_DEFAULT;
   const unbilled = tasks.filter(t => t.stage === "completed" && t.isBillable && !t.isInvoiced);
-  
+
   const generateInvoice = async (clientId) => {
     const clientUnbilled = unbilled.filter(t => t.clientId === clientId);
     if (!clientUnbilled.length) return;
     const amount = clientUnbilled.reduce((a, t) => a + (t.actualHours * 1000), 0); // Mock rate 1000/hr
-    const newInv = { id: uuid(), number: "INV-" + Math.floor(Math.random()*10000), clientId, amount: amount || 5000, status: "sent", issuedDate: dF(0), dueDate: dF(14), paidDate: null, taskIds: clientUnbilled.map(t=>t.id) };
+    const newInv = { id: uuid(), number: "INV-" + Math.floor(Math.random() * 10000), clientId, amount: amount || 5000, status: "sent", issuedDate: dF(0), dueDate: dF(14), paidDate: null, taskIds: clientUnbilled.map(t => t.id) };
     await addDoc(collection(db, "invoices"), newInv);
     clientUnbilled.forEach(async t => await updateDoc(doc(db, "tasks", t.id), { isInvoiced: true, invoiceId: newInv.id }));
   };
@@ -1655,7 +1655,7 @@ function BillingPage() {
                     <td style={{ padding: "11px 14px", borderBottom: `1px solid ${T.border}` }}><span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 20, background: bg, color: c, textTransform: "capitalize" }}>{inv.status}</span></td>
                     <td style={{ padding: "11px 14px", borderBottom: `1px solid ${T.border}`, fontSize: 11, color: T.textMid }}>{inv.issuedDate}</td>
                     <td style={{ padding: "11px 14px", borderBottom: `1px solid ${T.border}`, fontSize: 11, color: T.textMid }}>{inv.dueDate}</td>
-                    <td style={{ padding: "11px 14px", borderBottom: `1px solid ${T.border}`, fontSize: 11, color: inv.paidDate ? T.success : T.textLight }}>{inv.paidDate || (!["paid"].includes(inv.status) ? <Btn size="sm" variant="outline" onClick={()=>markPaid(inv.id)}>Mark Paid</Btn> : "—")}</td>
+                    <td style={{ padding: "11px 14px", borderBottom: `1px solid ${T.border}`, fontSize: 11, color: inv.paidDate ? T.success : T.textLight }}>{inv.paidDate || (!["paid"].includes(inv.status) ? <Btn size="sm" variant="outline" onClick={() => markPaid(inv.id)}>Mark Paid</Btn> : "—")}</td>
                   </tr>
                 );
               })}
@@ -1706,7 +1706,7 @@ function BillingPage() {
 // REPORTS PAGE
 // ═══════════════════════════════════════════════════════════════════════
 function ReportsPage() {
-  const { tasks, clients, depts } = useApp();
+  const { openDialog, tasks, clients, depts } = useApp();
   const [tab, setTab] = useState("overview");
   const [fc, setFc] = useState("all");
   const [cMetric, setCMetric] = useState("time");
@@ -1718,17 +1718,17 @@ function ReportsPage() {
   const total = f.length;
 
   const getCustomReport = () => {
-     let groups = {};
-     f.forEach(t => {
-       let gId = cGroup === "client" ? getClient(t.clientId)?.name : cGroup === "dept" ? getDept(t.deptId, D)?.name : t.stage;
-       if (!gId) gId = "Unknown";
-       if (!groups[gId]) groups[gId] = { total: 0, val: 0, count: 0 };
-       groups[gId].total++;
-       if (cMetric === "time") groups[gId].val += t.actualHours;
-       if (cMetric === "revisions") groups[gId].val += t.revisionCount;
-       if (cMetric === "tasks") groups[gId].val++;
-     });
-     return Object.entries(groups).map(([k,v]) => ({ label: k, ...v }));
+    let groups = {};
+    f.forEach(t => {
+      let gId = cGroup === "client" ? getClient(t.clientId)?.name : cGroup === "dept" ? getDept(t.deptId, D)?.name : t.stage;
+      if (!gId) gId = "Unknown";
+      if (!groups[gId]) groups[gId] = { total: 0, val: 0, count: 0 };
+      groups[gId].total++;
+      if (cMetric === "time") groups[gId].val += t.actualHours;
+      if (cMetric === "revisions") groups[gId].val += t.revisionCount;
+      if (cMetric === "tasks") groups[gId].val++;
+    });
+    return Object.entries(groups).map(([k, v]) => ({ label: k, ...v }));
   };
 
   return (
@@ -1783,9 +1783,9 @@ function ReportsPage() {
         <Card sx={{ padding: 24 }}>
           <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 16 }}>Custom Data Builder</div>
           <div style={{ display: "flex", gap: 14, marginBottom: 24, padding: 14, background: T.bg, borderRadius: T.radiusSm }}>
-            <Sel label="Metric to Measure" value={cMetric} onChange={setCMetric} options={[{value:"time", label:"Hours Spent"}, {value:"revisions", label:"Revision Count"}, {value:"tasks", label:"Task Volume"}]} />
-            <Sel label="Group By" value={cGroup} onChange={setCGroup} options={[{value:"client", label:"Client"}, {value:"dept", label:"Department"}, {value:"stage", label:"Workflow Stage"}]} />
-            <Btn sx={{ alignSelf: "flex-end" }} onClick={() => {}}>Generate Report</Btn>
+            <Sel label="Metric to Measure" value={cMetric} onChange={setCMetric} options={[{ value: "time", label: "Hours Spent" }, { value: "revisions", label: "Revision Count" }, { value: "tasks", label: "Task Volume" }]} />
+            <Sel label="Group By" value={cGroup} onChange={setCGroup} options={[{ value: "client", label: "Client" }, { value: "dept", label: "Department" }, { value: "stage", label: "Workflow Stage" }]} />
+            <Btn sx={{ alignSelf: "flex-end" }} onClick={() => { }}>Generate Report</Btn>
           </div>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead><tr style={{ background: T.bg }}>{["Group", "Metric Volume", "Percentage"].map(h => <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 800, color: T.textLight, textTransform: "uppercase", borderBottom: `1px solid ${T.border}` }}>{h}</th>)}</tr></thead>
@@ -1799,9 +1799,9 @@ function ReportsPage() {
                     <td style={{ padding: "12px 14px", borderBottom: `1px solid ${T.border}`, fontSize: 14, fontWeight: 800, color: T.blue, fontFamily: T.fontMono }}>{Number(r.val).toFixed(2)} {cMetric === "time" ? "hrs" : ""}</td>
                     <td style={{ padding: "12px 14px", borderBottom: `1px solid ${T.border}` }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {tasks.some(t => t.timerStart) && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 8px #4ade80" }} />}
-                         <span style={{ fontSize: 12, fontWeight: 700, width: 34 }}>{Math.round(pct)}%</span>
-                         <Progress value={pct} color={Object.values(PRIORITY_CFG)[i%3].color} />
+                        {tasks.some(t => t.timerStart) && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 8px #4ade80" }} />}
+                        <span style={{ fontSize: 12, fontWeight: 700, width: 34 }}>{Math.round(pct)}%</span>
+                        <Progress value={pct} color={Object.values(PRIORITY_CFG)[i % 3].color} />
                       </div>
                     </td>
                   </tr>
@@ -1819,7 +1819,7 @@ function ReportsPage() {
 // AUDIT LOG
 // ═══════════════════════════════════════════════════════════════════════
 function AuditPage() {
-  const { tasks, depts } = useApp();
+  const { openDialog, tasks, depts } = useApp();
   const [fActor, setFA] = useState("all");
   const [fDept, setFD] = useState("all");
   const [fAction, setFAct] = useState("all");
@@ -1896,28 +1896,28 @@ function BulkUserModal({ onClose }) {
     setError(null);
     const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
     const newUsers = [];
-    
+
     for (const line of lines) {
       const parts = line.split(",").map(s => s.trim());
       const [name, email, roleKey, deptName] = parts;
-      
+
       if (!name || !email || !roleKey) {
         setError(`Invalid line: "${line}". Expected format: Name, Email, Role, [Department]`);
         setLoading(false);
         return;
       }
-      
+
       const role = ROLES[roleKey.toUpperCase()] || roleKey;
       const dept = depts.find(d => d.name.toLowerCase() === deptName?.toLowerCase())?.id || null;
-      
+
       newUsers.push({
         id: uuid(),
         name,
         email,
         role,
         dept,
-        color: "#" + Math.floor(Math.random()*16777215).toString(16),
-        av: name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0,2),
+        color: "#" + Math.floor(Math.random() * 16777215).toString(16),
+        av: name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2),
         password: "Sbbs@123",
         createdAt: new Date().toISOString()
       });
@@ -1940,13 +1940,13 @@ function BulkUserModal({ onClose }) {
     <Modal title="Bulk Upload Users" onClose={onClose} width={500}>
       <div style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 11, color: T.textLight, marginBottom: 10, padding: 10, background: T.bg, borderRadius: T.radiusSm }}>
-          <strong>Format:</strong> <code>Name, Email, Role, Department</code> (one per line)<br/>
-          <strong>Roles:</strong> PM (Project Manager), DM (Dept Manager), M (Member), CL (Client), SA (Super Admin)<br/>
+          <strong>Format:</strong> <code>Name, Email, Role, Department</code> (one per line)<br />
+          <strong>Roles:</strong> PM (Project Manager), DM (Dept Manager), M (Member), CL (Client), SA (Super Admin)<br />
           <strong>Example:</strong> <code>John Doe, john@sbbs.com, M, Design</code>
         </div>
-        <textarea 
-          value={text} 
-          onChange={e => setText(e.target.value)} 
+        <textarea
+          value={text}
+          onChange={e => setText(e.target.value)}
           style={{ width: "100%", height: 200, padding: 10, border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontFamily: T.fontMono, fontSize: 12, outline: "none", background: T.surface }}
           placeholder="Name, Email, Role, Dept..."
         />
@@ -1963,21 +1963,21 @@ function BulkUserModal({ onClose }) {
 }
 
 function TeamPage() {
-  const { tasks, depts, users, setUsers } = useApp();
+  const { openDialog, tasks, depts, users, setUsers } = useApp();
   const [showInvite, setShowInvite] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [form, setForm] = useState({ name: "", email: "", role: "", dept: [], password: "Sbbs@123" });
-  
+
   const openInvite = () => { setForm({ name: "", email: "", role: "", dept: [], password: "Sbbs@123" }); setEditingUser(null); setShowInvite(true); };
   const openEdit = (u) => { setForm({ name: u.name, email: u.email, role: u.role, dept: Array.isArray(u.dept) ? u.dept : (u.dept ? [u.dept] : []), password: u.password || "" }); setEditingUser(u); setShowInvite(true); };
 
   const save = async () => {
-    if(!form.name || !form.email || !form.role) return;
+    if (!form.name || !form.email || !form.role) return;
     if (editingUser) {
-      await updateDoc(doc(db, "users", editingUser.id), { ...form, av: form.name.substring(0,2).toUpperCase() });
+      await updateDoc(doc(db, "users", editingUser.id), { ...form, av: form.name.substring(0, 2).toUpperCase() });
     } else {
-      await addDoc(collection(db, "users"), { id: uuid(), ...form, av: form.name.substring(0,2).toUpperCase(), color: "#4F46E5", createdAt: new Date().toISOString() });
+      await addDoc(collection(db, "users"), { id: uuid(), ...form, av: form.name.substring(0, 2).toUpperCase(), color: "#4F46E5", createdAt: new Date().toISOString() });
     }
     setShowInvite(false);
   };
@@ -2004,7 +2004,7 @@ function TeamPage() {
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
                 <div style={{ width: 44, height: 44, borderRadius: "50%", background: u.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: "#fff", border: "3px solid #fff", boxShadow: "0 2px 8px rgba(0,0,0,.15)" }}>{u.av}</div>
                 <div style={{ flex: 1 }}><div style={{ fontSize: 14, fontWeight: 800, color: T.text }}>{u.name}</div><div style={{ fontSize: 11, color: T.textMid }}>{ROLE_LABELS[u.role]}</div>{dept && <div style={{ fontSize: 10, color: dept.color, fontWeight: 700 }}>{dept.icon} {dept.name}</div>}</div>
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}><span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, background: T.successBg, color: T.success }}>Active</span><Btn size="sm" variant="ghost" onClick={() => openEdit(u)}>Edit</Btn><Btn size="sm" variant="ghost" sx={{ color: T.danger }} onClick={async () => { const pw = prompt("New password for " + u.name); if(pw) await updateDoc(doc(db, "users", u.id), { password: pw }); }}>Reset Pwd</Btn><Btn size="sm" variant="danger" onClick={async () => { const pw = prompt("New password for " + u.name); if(pw) await updateDoc(doc(db, "users", u.id), { password: pw }); }}>Reset Pwd</Btn></div>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}><span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, background: T.successBg, color: T.success }}>Active</span><Btn size="sm" variant="ghost" onClick={() => openEdit(u)}>Edit</Btn><Btn size="sm" variant="ghost" sx={{ color: T.danger }} onClick={async () => { const pw = prompt("New password for " + u.name); if (pw) await updateDoc(doc(db, "users", u.id), { password: pw }); }}>Reset Pwd</Btn><Btn size="sm" variant="danger" onClick={async () => { const pw = prompt("New password for " + u.name); if (pw) await updateDoc(doc(db, "users", u.id), { password: pw }); }}>Reset Pwd</Btn></div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6 }}>
                 {[["Active", active.length, T.blue], ["Done", done.length, T.success], ["Overdue", ov.length, ov.length > 0 ? T.danger : T.textMid], ["Hours", `${Number(h).toFixed(2)}h`, T.warning]].map(([l, v, c]) => (
@@ -2024,12 +2024,12 @@ function TeamPage() {
           <Inp label="Email" value={form.email} onChange={v => setForm(p => ({ ...p, email: v }))} type="email" required />
           <Sel label="Role" value={form.role} onChange={v => setForm(p => ({ ...p, role: v }))} required options={Object.entries(ROLE_LABELS).filter(([k]) => k !== ROLES.CL).map(([k, v]) => ({ value: k, label: v }))} />
           {showDept && (
-             <div style={{ marginBottom: 14 }}>
-               <label style={{ fontSize: 12, fontWeight: 700, color: T.textMid, display: "block", marginBottom: 5 }}>Departments (Ctrl/Cmd-click to select multiple)</label>
-               <select multiple value={form.dept} onChange={e => setForm(p => ({ ...p, dept: Array.from(e.target.selectedOptions, o => o.value) }))} style={{ width: "100%", padding: "9px 12px", border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: 13, fontFamily: T.font, outline: "none", minHeight: 100 }}>
-                 {(depts || DEPTS_DEFAULT).map(d => <option key={d.id} value={d.id}>{d.icon} {d.name}</option>)}
-               </select>
-             </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: T.textMid, display: "block", marginBottom: 5 }}>Departments (Ctrl/Cmd-click to select multiple)</label>
+              <select multiple value={form.dept} onChange={e => setForm(p => ({ ...p, dept: Array.from(e.target.selectedOptions, o => o.value) }))} style={{ width: "100%", padding: "9px 12px", border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: 13, fontFamily: T.font, outline: "none", minHeight: 100 }}>
+                {(depts || DEPTS_DEFAULT).map(d => <option key={d.id} value={d.id}>{d.icon} {d.name}</option>)}
+              </select>
+            </div>
           )}
           <Inp label="Login Password" value={form.password} onChange={v => setForm(p => ({ ...p, password: v }))} required />
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -2046,7 +2046,7 @@ function TeamPage() {
 // SETTINGS PAGE — FIX #4 (dept CRUD) + FIX #5 (stage edit)
 // ═══════════════════════════════════════════════════════════════════════
 function SettingsPage() {
-  const { tasks, stages, depts, users, currentUser, updateTask, permissions, automations } = useApp();
+  const { openDialog, tasks, stages, depts, users, currentUser, updateTask, permissions, automations } = useApp();
   const [tab, setTab] = useState("workflow");
 
   const [editingAuto, setEditingAuto] = useState(null);
@@ -2063,7 +2063,7 @@ function SettingsPage() {
   const [editingDept, setEditingDept] = useState(null);
   const [deptForm, setDeptForm] = useState({ name: "", icon: "🏢", color: "#6366F1" });
 
-  const [notifState, setNotifState] = useState({"Task assigned to me": true, "Stage updates": true, "Revision requested": true, "Client approval": true, "Overdue alerts": false, "Weekly summary": false});
+  const [notifState, setNotifState] = useState({ "Task assigned to me": true, "Stage updates": true, "Revision requested": true, "Client approval": true, "Overdue alerts": false, "Weekly summary": false });
 
   const TABS = [["workflow", "⚙ Workflow Builder"], ["departments", "🏢 Departments"], ["roles", "🔒 Roles & Privileges"], ["automations", "🤖 Automations"], ["notifications", "🔔 Notifications"], ["general", "🏢 General"]];
 
@@ -2074,16 +2074,16 @@ function SettingsPage() {
       await updateDoc(doc(db, "config", "workflow"), { stages: updated });
     } else {
       const ns = { id: uuid(), label: stageForm.label, color: stageForm.color, bg: stageForm.bg, approverRole: stageForm.approverRole, step: stages.length, terminal: false };
-      const newStages = [...stages]; 
-      newStages.splice(newStages.length - 1, 0, ns); 
+      const newStages = [...stages];
+      newStages.splice(newStages.length - 1, 0, ns);
       const final = newStages.map((s, i) => ({ ...s, step: i + 1 }));
       await updateDoc(doc(db, "config", "workflow"), { stages: final });
     }
     setShowAddStage(false);
   };
 
-  const deleteStage = async (id) => { 
-    if (["created", "completed"].includes(id)) return; 
+  const deleteStage = async (id) => {
+    if (["created", "completed"].includes(id)) return;
     const final = stages.filter(s => s.id !== id).map((s, i) => ({ ...s, step: i + 1 }));
     await updateDoc(doc(db, "config", "workflow"), { stages: final });
   };
@@ -2100,7 +2100,7 @@ function SettingsPage() {
     setShowDeptModal(false);
   };
 
-  const deleteDept = async (id) => { 
+  const deleteDept = async (id) => {
     const final = depts.filter(d => d.id !== id);
     await updateDoc(doc(db, "config", "departments"), { list: final });
   };
@@ -2252,10 +2252,10 @@ function SettingsPage() {
                     setShowAutoModal(true);
                   }}>Edit</Btn>
                   <Btn size="sm" variant="ghost" sx={{ color: T.danger }} onClick={async () => {
-                    if (confirm("Delete automation?")) {
+                    openDialog("danger", "Delete automation", "Delete automation?", async () => {
                       const final = automations.filter(x => x.id !== a.id);
                       await updateDoc(doc(db, "config", "automations"), { list: final });
-                    }
+                    });
                   }}>Delete</Btn>
                 </div>
               </Card>
@@ -2266,12 +2266,12 @@ function SettingsPage() {
             <Modal title={editingAuto ? "Edit Automation" : "New Automation"} onClose={() => setShowAutoModal(false)} width={600}>
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <Inp label="Automation Name" value={autoForm.name} onChange={v => setAutoForm(p => ({ ...p, name: v }))} required />
-                
+
                 <div style={{ padding: 14, background: T.bg, borderRadius: T.radiusSm }}>
                   <div style={{ fontSize: 11, fontWeight: 800, color: T.textLight, textTransform: "uppercase", marginBottom: 10 }}>1. Trigger</div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     <Sel label="When..." value={autoForm.trigger} onChange={v => setAutoForm(p => ({ ...p, trigger: v }))} options={AUTOMATION_TRIGGERS.map(t => ({ value: t.id, label: t.label }))} />
-                    
+
                     {autoForm.trigger === "stage_changed" && (
                       <Sel label="Stage is..." value={autoForm.triggerValue} onChange={v => setAutoForm(p => ({ ...p, triggerValue: v }))} options={stages.map(s => ({ value: s.id, label: s.label }))} />
                     )}
@@ -2282,7 +2282,7 @@ function SettingsPage() {
                       <Sel label="Priority is..." value={autoForm.triggerValue} onChange={v => setAutoForm(p => ({ ...p, triggerValue: v }))} options={Object.entries(PRIORITY_CFG).map(([k, x]) => ({ value: k, label: x.label }))} />
                     )}
                     {!["stage_changed", "assigned_changed", "priority_changed", "task_created", "task_updated", "subtask_completed", "all_subtasks_done", "checklist_done", "overdue", "due_approaching"].includes(autoForm.trigger) && autoForm.triggerValue && (
-                       <Inp label="Value equals..." value={autoForm.triggerValue} onChange={v => setAutoForm(p => ({ ...p, triggerValue: v }))} />
+                      <Inp label="Value equals..." value={autoForm.triggerValue} onChange={v => setAutoForm(p => ({ ...p, triggerValue: v }))} />
                     )}
                   </div>
                 </div>
@@ -2297,17 +2297,17 @@ function SettingsPage() {
                       <div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
                         <Sel label="Field" value={c.field} onChange={v => {
                           const nc = [...autoForm.conditions]; nc[i].field = v; setAutoForm(p => ({ ...p, conditions: nc }));
-                        }} options={[{value: "priority", label: "Priority"}, {value: "deptId", label: "Department"}, {value: "isBillable", label: "Billable"}]} />
+                        }} options={[{ value: "priority", label: "Priority" }, { value: "deptId", label: "Department" }, { value: "isBillable", label: "Billable" }]} />
                         <Sel label="Is" value={c.operator} onChange={v => {
                           const nc = [...autoForm.conditions]; nc[i].operator = v; setAutoForm(p => ({ ...p, conditions: nc }));
-                        }} options={[{value: "==", label: "Equals"}, {value: "!=", label: "Not Equals"}, {value: "contains", label: "Contains"}]} />
-                        
+                        }} options={[{ value: "==", label: "Equals" }, { value: "!=", label: "Not Equals" }, { value: "contains", label: "Contains" }]} />
+
                         {c.field === "priority" ? (
                           <Sel label="Value" value={c.value} onChange={v => { const nc = [...autoForm.conditions]; nc[i].value = v; setAutoForm(p => ({ ...p, conditions: nc })); }} options={Object.entries(PRIORITY_CFG).map(([k, x]) => ({ value: k, label: x.label }))} />
                         ) : c.field === "deptId" ? (
                           <Sel label="Value" value={c.value} onChange={v => { const nc = [...autoForm.conditions]; nc[i].value = v; setAutoForm(p => ({ ...p, conditions: nc })); }} options={depts.map(d => ({ value: d.id, label: d.name }))} />
                         ) : c.field === "isBillable" ? (
-                          <Sel label="Value" value={c.value === "true" || c.value === true} onChange={v => { const nc = [...autoForm.conditions]; nc[i].value = v; setAutoForm(p => ({ ...p, conditions: nc })); }} options={[{value: true, label: "Yes"}, {value: false, label: "No"}]} />
+                          <Sel label="Value" value={c.value === "true" || c.value === true} onChange={v => { const nc = [...autoForm.conditions]; nc[i].value = v; setAutoForm(p => ({ ...p, conditions: nc })); }} options={[{ value: true, label: "Yes" }, { value: false, label: "No" }]} />
                         ) : (
                           <Inp label="Value" value={c.value} onChange={v => {
                             const nc = [...autoForm.conditions]; nc[i].value = v; setAutoForm(p => ({ ...p, conditions: nc }));
@@ -2321,7 +2321,7 @@ function SettingsPage() {
                       </div>
                     ))}
                     {autoForm.conditions?.length > 1 && (
-                      <Sel label="Logic" value={autoForm.conditionLogic} onChange={v => setAutoForm(p => ({ ...p, conditionLogic: v }))} options={[{value: "AND", label: "Match ALL conditions"}, {value: "OR", label: "Match ANY condition"}]} />
+                      <Sel label="Logic" value={autoForm.conditionLogic} onChange={v => setAutoForm(p => ({ ...p, conditionLogic: v }))} options={[{ value: "AND", label: "Match ALL conditions" }, { value: "OR", label: "Match ANY condition" }]} />
                     )}
                   </div>
                 </div>
@@ -2333,11 +2333,11 @@ function SettingsPage() {
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     {(autoForm.actions || []).map((a, i) => (
-                      <div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-end", paddingBottom: 8, borderBottom: i < autoForm.actions.length-1 ? `1px dashed ${T.border}` : "none" }}>
+                      <div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-end", paddingBottom: 8, borderBottom: i < autoForm.actions.length - 1 ? `1px dashed ${T.border}` : "none" }}>
                         <Sel label="Action Type" value={a.type} onChange={v => {
                           const na = [...autoForm.actions]; na[i].type = v; setAutoForm(p => ({ ...p, actions: na }));
                         }} options={AUTOMATION_ACTIONS.map(x => ({ value: x.id, label: x.label }))} />
-                        
+
                         {a.type === "assign_to" ? (
                           <Sel label="Assign to" value={a.value} onChange={v => { const na = [...autoForm.actions]; na[i].value = v; setAutoForm(p => ({ ...p, actions: na })); }} options={users.filter(u => u.role !== ROLES.CL).map(u => ({ value: u.id, label: u.name }))} />
                         ) : a.type === "change_stage" ? (
@@ -2361,7 +2361,7 @@ function SettingsPage() {
 
                 <Btn full onClick={async () => {
                   if (!autoForm.name) return;
-                  const final = editingAuto 
+                  const final = editingAuto
                     ? automations.map(x => x.id === editingAuto ? { ...autoForm } : x)
                     : [...automations, { ...autoForm, id: uuid() }];
                   await updateDoc(doc(db, "config", "automations"), { list: final });
@@ -2388,7 +2388,7 @@ function SettingsPage() {
   );
 }
 
-export default function App()  {
+export default function App() {
   const [currentUser, setCurrentUser] = useState(() => { const saved = localStorage.getItem("wf_user"); return saved ? JSON.parse(saved) : null; });
   const [users, setUsers] = useState([]);
   const [nav, setNav] = useState("dashboard");
@@ -2423,7 +2423,7 @@ export default function App()  {
       });
       setLoading(false);
     });
-    
+
     return () => { unsubTasks(); unsubInvoices(); unsubClients(); unsubUsers(); };
   }, []);
 
@@ -2432,14 +2432,14 @@ export default function App()  {
     await setDoc(doc(db, "config", "workflow"), { stages: STAGES_DEFAULT });
     await setDoc(doc(db, "config", "departments"), { list: DEPTS_DEFAULT });
     await setDoc(doc(db, "config", "automations"), { list: SEED_AUTOMATIONS });
-    
+
     const initialPerms = {};
     Object.keys(ROLE_LABELS).forEach(r => {
       initialPerms[r] = ["Create Tasks", "Edit Organization", "Approve Stages", "View Financials", "Manage Users", "Access Settings"].filter(p => {
-         if (r === "super_admin") return true;
-         if (r === "project_manager") return ["Create Tasks", "Approve Stages", "View Financials", "Access Settings"].includes(p);
-         if (r === "dept_manager") return ["Create Tasks", "Approve Stages"].includes(p);
-         return false;
+        if (r === "super_admin") return true;
+        if (r === "project_manager") return ["Create Tasks", "Approve Stages", "View Financials", "Access Settings"].includes(p);
+        if (r === "dept_manager") return ["Create Tasks", "Approve Stages"].includes(p);
+        return false;
       });
     });
     await setDoc(doc(db, "config", "permissions"), { roles: initialPerms });
@@ -2451,10 +2451,10 @@ export default function App()  {
   const runAutomations = useCallback(async (triggerType, triggerData) => {
     if (!automations.length) return;
     const activeAutos = automations.filter(a => a.active && a.trigger === triggerType);
-    
+
     for (const auto of activeAutos) {
       if (auto.triggerValue && triggerData.triggerValue !== auto.triggerValue) continue;
-      
+
       const task = tasks.find(t => t.id === triggerData.taskId) || triggerData.task;
       if (!task) continue;
 
@@ -2474,14 +2474,14 @@ export default function App()  {
       const actions = auto.actions || [{ type: auto.action, value: auto.actionValue }];
       for (const action of actions) {
         switch (action.type) {
-          case "assign_to": 
-            await updateDoc(doc(db, "tasks", task.id), { assignedTo: action.value }); 
+          case "assign_to":
+            await updateDoc(doc(db, "tasks", task.id), { assignedTo: action.value });
             break;
-          case "change_stage": 
-            await updateDoc(doc(db, "tasks", task.id), { stage: action.value }); 
+          case "change_stage":
+            await updateDoc(doc(db, "tasks", task.id), { stage: action.value });
             break;
-          case "change_priority": 
-            await updateDoc(doc(db, "tasks", task.id), { priority: action.value }); 
+          case "change_priority":
+            await updateDoc(doc(db, "tasks", task.id), { priority: action.value });
             break;
           case "add_comment":
             const newComment = { id: uuid(), userId: "system", text: action.value, ts: new Date().toISOString() };
@@ -2497,7 +2497,7 @@ export default function App()  {
             break;
           case "set_due_date":
             const days = parseInt(action.value) || 0;
-            const newDue = new Date(Date.now() + days * 86400000).toISOString().slice(0,10);
+            const newDue = new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
             await updateDoc(doc(db, "tasks", task.id), { dueDate: newDue });
             break;
         }
@@ -2517,15 +2517,15 @@ export default function App()  {
     if (!t.assignedTo && !assigneeId && tx.to !== "created") { alert("Assignment required"); return; }
 
     const newTr = { from: t.stage, to: tx.to, actor: currentUser.id, comment: comment || null, ts: new Date().toISOString(), isRejection: !!tx.isReject };
-    await updateDoc(doc(db, "tasks", taskId), { 
-      stage: tx.to, 
-      revisionCount: tx.isReject ? t.revisionCount + 1 : t.revisionCount, 
-      revisionOverheadHours: tx.isReject ? t.revisionOverheadHours + 2 : t.revisionOverheadHours, 
-      completedAt: tx.to === "completed" ? new Date().toISOString() : t.completedAt, 
-      assignedTo: assigneeId || t.assignedTo || null, 
-      transitions: [...(t.transitions || []), newTr] 
+    await updateDoc(doc(db, "tasks", taskId), {
+      stage: tx.to,
+      revisionCount: tx.isReject ? t.revisionCount + 1 : t.revisionCount,
+      revisionOverheadHours: tx.isReject ? t.revisionOverheadHours + 2 : t.revisionOverheadHours,
+      completedAt: tx.to === "completed" ? new Date().toISOString() : t.completedAt,
+      assignedTo: assigneeId || t.assignedTo || null,
+      transitions: [...(t.transitions || []), newTr]
     });
-    
+
     // FIRE AUTOMATION
     runAutomations("stage_changed", { taskId, triggerValue: tx.to });
   }, [currentUser, tasks, runAutomations]);
@@ -2542,7 +2542,8 @@ export default function App()  {
   if (!currentUser) return <LoginScreen onLogin={setCurrentUser} />;
 
   const isClient = currentUser.role === ROLES.CL;
-  const ctx = { tasks, setTasks, invoices, setInvoices, clients, setClients, stages, setStages, depts, setDepts, automations, setAutomations, users, setUsers, currentUser, doTransition, updateTask, permissions, setPermissions, runAutomations, seedDatabase };
+  // openDialog added to context
+  const ctx = { openDialog, tasks, setTasks, invoices, setInvoices, clients, setClients, stages, setStages, depts, setDepts, automations, setAutomations, users, setUsers, currentUser, doTransition, updateTask, permissions, setPermissions, runAutomations, seedDatabase };
 
   return (
     <Ctx.Provider value={ctx}>
@@ -2567,20 +2568,38 @@ export default function App()  {
           } />
           <main style={{ flex: 1, padding: "20px 24px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             {nav === "dashboard" && <Dashboard currentUser={currentUser} setNav={setNav} openTask={setSelectedTask} />}
-            {nav === "tasks"     && <TasksPage currentUser={currentUser} openTask={setSelectedTask} showCreate={showCreate} setShowCreate={setShowCreate} />}
+            {nav === "tasks" && <TasksPage currentUser={currentUser} openTask={setSelectedTask} showCreate={showCreate} setShowCreate={setShowCreate} />}
             {nav === "tasks" && showCreate && <CreateTaskModal onClose={() => setShowCreate(false)} />}
-            {nav === "clients"   && <ClientsPage openTask={setSelectedTask} openCreate={(cId) => { setPrefilledClient(cId); setShowCreate(true); }} />}
-            {nav === "billing"   && <BillingPage />}
-            {nav === "reports"   && <ReportsPage />}
-            {nav === "audit"     && <AuditPage />}
-            {nav === "team"      && <TeamPage />}
-            {nav === "settings"  && <SettingsPage />}
+            {nav === "clients" && <ClientsPage openTask={setSelectedTask} openCreate={(cId) => { setPrefilledClient(cId); setShowCreate(true); }} />}
+            {nav === "billing" && <BillingPage />}
+            {nav === "reports" && <ReportsPage />}
+            {nav === "audit" && <AuditPage />}
+            {nav === "team" && <TeamPage />}
+            {nav === "settings" && <SettingsPage />}
           </main>
         </div>
       </div>
       {selectedTask && <TaskDetail taskId={selectedTask} onClose={() => setSelectedTask(null)} />}
       {showCreate && nav !== "tasks" && <CreateTaskModal onClose={() => { setShowCreate(false); setPrefilledClient(""); }} initialClient={prefilledClient} />}
       <GlobalTimer />
+      {dialog && (
+        <Modal title={dialog.title} onClose={() => setDialog(null)} width={400}>
+          <div style={{ marginBottom: 20, fontSize: 13, color: T.textMid }}>{dialog.msg}</div>
+          {dialog.type === 'prompt' && <Inp id="dialogPrompt" autoFocus placeholder={dialog.placeholder} />}
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 10 }}>
+            <Btn variant="secondary" onClick={() => setDialog(null)}>Cancel</Btn>
+            <Btn sx={{ background: dialog.type === 'danger' ? T.danger : T.blue }} onClick={() => {
+              const val = dialog.type === 'prompt' ? document.getElementById('dialogPrompt').value : true;
+              if (dialog.type !== 'prompt' || val) {
+                dialog.onConfirm(val);
+                setDialog(null);
+              }
+            }}>Confirm</Btn>
+          </div>
+        </Modal>
+      )}
     </Ctx.Provider>
   );
 }
+const [dialog, setDialog] = useState(null);
+const openDialog = (type, title, msg, onConfirm, placeholder = "") => setDialog({ type, title, msg, onConfirm, placeholder });
